@@ -1,9 +1,9 @@
 package com.talentlens.candidate;
 
-import java.util.List;
-
 import com.talentlens.common.ConflictException;
+import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +28,8 @@ public class CandidateService {
     }
 
     @Transactional(readOnly = true)
-    public List<CandidateResponse> findAll() {
-        return repository.findAll().stream().map(CandidateResponse::from).toList();
+    public PageResponse<CandidateResponse> findAll(Pageable pageable) {
+        return PageResponse.from(repository.findAll(pageable), CandidateResponse::from);
     }
 
     @Transactional(readOnly = true)

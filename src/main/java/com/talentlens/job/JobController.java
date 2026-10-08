@@ -1,8 +1,10 @@
 package com.talentlens.job;
 
 import java.net.URI;
-import java.util.List;
+import java.util.Set;
 
+import com.talentlens.common.PageQuery;
+import com.talentlens.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,11 +14,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
 public class JobController {
+
+    private static final Set<String> SORTABLE_FIELDS = Set.of("id", "title", "location", "minExperienceYears", "status", "createdAt");
 
     private final JobService service;
 
@@ -31,8 +36,10 @@ public class JobController {
     }
 
     @GetMapping
-    public List<JobResponse> findAll() {
-        return service.findAll();
+    public PageResponse<JobResponse> findAll(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort) {
+        return service.findAll(PageQuery.of(page, size, sort, SORTABLE_FIELDS));
     }
 
     @GetMapping("/{id}")

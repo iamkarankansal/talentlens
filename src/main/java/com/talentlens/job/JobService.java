@@ -1,8 +1,8 @@
 package com.talentlens.job;
 
-import java.util.List;
-
+import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +23,8 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
-    public List<JobResponse> findAll() {
-        return repository.findAll().stream().map(JobResponse::from).toList();
+    public PageResponse<JobResponse> findAll(Pageable pageable) {
+        return PageResponse.from(repository.findAll(pageable), JobResponse::from);
     }
 
     @Transactional(readOnly = true)
