@@ -1,6 +1,6 @@
 # Roadmap
 
-One item is built per day, top to bottom. Each item ships with tests.
+Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 
 ## Foundation
 - [x] Project setup, Jobs and Candidates CRUD, error handling, Docker, CI
@@ -14,36 +14,27 @@ One item is built per day, top to bottom. Each item ships with tests.
 
 ## Applications
 - [ ] Application entity linking a candidate to a job, with a status pipeline
-- [ ] Application status transitions with validation and history
-- [ ] List applications per job and per candidate
+- [ ] Application status transitions with validation; list applications per job and per candidate
 
 ## Matching
 - [ ] Embeddings for jobs and candidate profiles stored in pgvector
 - [ ] Semantic candidate ranking for a job
 - [ ] Match explanation: why a candidate fits, and what is missing
 - [ ] Skill-gap report for a candidate against a job
-- [ ] Re-embed automatically when a job or resume changes
 
 ## Security
 - [ ] User accounts with password hashing
-- [ ] JWT login and refresh
+- [ ] JWT login
 - [ ] Roles: ADMIN, RECRUITER, CANDIDATE
-- [ ] Rate limiting on AI endpoints
 
 ## Recruiter assistant
 - [ ] RAG chat over the candidate pool
 - [ ] Interview question generator tailored to a candidate and job
 - [ ] Tool-calling agent: shortlist candidates for a job
 - [ ] Tool-calling agent: draft rejection and next-round emails
-- [ ] Interview scheduling with slots and feedback forms
-- [ ] Interview feedback summarisation
 
-## Production readiness
+## Release
 - [ ] Redis caching for job and match results
-- [ ] Async resume processing with a job queue
-- [ ] Structured logging and request tracing
-- [ ] Metrics for model latency, token usage and cost
 - [ ] Testcontainers integration tests against real PostgreSQL
-- [ ] Configurable model provider (OpenAI, Gemini, Ollama)
 - [ ] CSV export of ranked candidates
-- [ ] Audit log of recruiter actions
+- [ ] v1.0: architecture overview and end-to-end walkthrough in the README, version bump to 1.0.0
