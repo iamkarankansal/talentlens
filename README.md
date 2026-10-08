@@ -1,0 +1,75 @@
+# TalentLens
+
+An AI-powered recruitment platform. Recruiters post jobs, candidates submit resumes, and a language model turns each resume into structured data that the rest of the system can search, rank and reason about.
+
+Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
+
+![CI](https://github.com/iamkarankansal/talentlens/actions/workflows/ci.yml/badge.svg)
+
+## What works today
+
+- Jobs API: create, list, read, update, delete
+- Candidates API: create, list, read, update, delete, with case-insensitive unique emails
+- Resume parsing: the model extracts headline, experience, skills and education as JSON
+- Consistent JSON error responses, including per-field validation errors
+- Tests that run on in-memory H2 with the model mocked, so no API key is needed
+
+See [ROADMAP.md](ROADMAP.md) for what is coming next.
+
+## Run it
+
+You need Docker and an OpenAI API key.
+
+```bash
+cp .env.example .env      # then put your key in .env
+docker compose up --build
+```
+
+The API is served at `http://localhost:8080`. The `.env` file is git-ignored; never commit it.
+
+To run only the tests (no key, no database needed):
+
+```bash
+mvn test
+```
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/jobs` | Create a job |
+| `GET` | `/api/v1/jobs` | List jobs |
+| `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or delete a job |
+| `POST` | `/api/v1/candidates` | Create a candidate |
+| `GET` | `/api/v1/candidates` | List candidates |
+| `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
+| `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume |
+
+Example:
+
+```bash
+curl -X POST localhost:8080/api/v1/candidates \
+  -H 'Content-Type: application/json' \
+  -d '{"fullName":"Asha Verma","email":"asha@example.com","resumeText":"5 years of Java, Spring Boot and Kafka..."}'
+
+curl -X POST localhost:8080/api/v1/candidates/1/resume/parse
+```
+
+## Project layout
+
+```
+src/main/java/com/talentlens
+├── job/         Job postings
+├── candidate/   Candidates and their resume text
+├── ai/          Model-backed features (resume parsing)
+└── common/      Error handling shared by all modules
+```
+
+## Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | none | Required for AI endpoints |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Chat model |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/talentlens` | Database URL |
+| `DB_USERNAME` / `DB_PASSWORD` | `talentlens` | Database credentials |

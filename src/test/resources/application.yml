@@ -1,0 +1,9 @@
+# Tests run against an in-memory H2 database and never call a real model.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  ai:
+    openai:
+      api-key: test-key

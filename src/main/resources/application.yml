@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: talentlens
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/talentlens}
+    username: ${DB_USERNAME:talentlens}
+    password: ${DB_PASSWORD:talentlens}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:not-set}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+          temperature: 0.2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
