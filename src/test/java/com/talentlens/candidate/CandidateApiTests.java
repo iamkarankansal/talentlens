@@ -1,5 +1,6 @@
 package com.talentlens.candidate;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -85,6 +86,25 @@ class CandidateApiTests {
 
         mockMvc.perform(post("/api/v1/candidates/" + id + "/resume/parse"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void listsCandidatesPagedAndSorted() throws Exception {
+        save("Asha Verma", "asha@example.com", null);
+        save("Rohan Mehta", "rohan@example.com", null);
+        save("Meera Nair", "meera@example.com", null);
+
+        mockMvc.perform(get("/api/v1/candidates").param("size", "2").param("sort", "fullName,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Rohan Mehta", "Meera Nair")))
+                .andExpect(jsonPath("$.totalElements", is(3)))
+                .andExpect(jsonPath("$.totalPages", is(2)));
+    }
+
+    @Test
+    void rejectsSortingCandidatesByAnUnknownField() throws Exception {
+        mockMvc.perform(get("/api/v1/candidates").param("sort", "resumeText"))
+                .andExpect(status().isBadRequest());
     }
 
     private Long save(String name, String email, String resume) {

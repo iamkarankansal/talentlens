@@ -1,5 +1,7 @@
 package com.talentlens.job;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -69,5 +71,50 @@ class JobApiTests {
 
         mockMvc.perform(delete("/api/v1/jobs/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(get("/api/v1/jobs/" + id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listsJobsOnePageAtATimeInTheRequestedOrder() throws Exception {
+        save("Backend Engineer");
+        save("Android Engineer");
+        save("Data Engineer");
+
+        mockMvc.perform(get("/api/v1/jobs").param("size", "2").param("sort", "title,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].title", contains("Android Engineer", "Backend Engineer")))
+                .andExpect(jsonPath("$.page", is(0)))
+                .andExpect(jsonPath("$.size", is(2)))
+                .andExpect(jsonPath("$.totalElements", is(3)))
+                .andExpect(jsonPath("$.totalPages", is(2)));
+
+        mockMvc.perform(get("/api/v1/jobs").param("page", "1").param("size", "2").param("sort", "title,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].title", contains("Data Engineer")));
+    }
+
+    @Test
+    void listsJobsWithDefaultPaging() throws Exception {
+        save("Backend Engineer");
+
+        mockMvc.perform(get("/api/v1/jobs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.size", is(20)));
+    }
+
+    @Test
+    void rejectsInvalidPagingParameters() throws Exception {
+        mockMvc.perform(get("/api/v1/jobs").param("sort", "description")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/jobs").param("sort", "title,sideways")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/jobs").param("size", "101")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/jobs").param("page", "-1")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/jobs").param("page", "first")).andExpect(status().isBadRequest());
+    }
+
+    private Long save(String title) {
+        Job job = new Job();
+        job.setTitle(title);
+        job.setDescription("Description of " + title);
+        return repository.save(job).getId();
     }
 }
