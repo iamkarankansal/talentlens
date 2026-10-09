@@ -107,6 +107,30 @@ class CandidateApiTests {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void searchesCandidatesByNameOrEmail() throws Exception {
+        save("Asha Verma", "asha@example.com", null);
+        save("Rohan Mehta", "rohan@verma-labs.com", null);
+        save("Meera Nair", "meera@example.com", null);
+
+        mockMvc.perform(get("/api/v1/candidates").param("q", "VERMA").param("sort", "fullName,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Asha Verma", "Rohan Mehta")))
+                .andExpect(jsonPath("$.totalElements", is(2)));
+
+        mockMvc.perform(get("/api/v1/candidates").param("q", "meera@"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Meera Nair")));
+
+        mockMvc.perform(get("/api/v1/candidates").param("q", "nobody"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(0)));
+
+        mockMvc.perform(get("/api/v1/candidates").param("q", " "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(3)));
+    }
+
     private Long save(String name, String email, String resume) {
         Candidate candidate = new Candidate();
         candidate.setFullName(name);

@@ -111,6 +111,51 @@ class JobApiTests {
         mockMvc.perform(get("/api/v1/jobs").param("page", "first")).andExpect(status().isBadRequest());
     }
 
+    @Test
+    void filtersJobsByStatusAndLocation() throws Exception {
+        save("Backend Engineer", JobStatus.OPEN, "Bengaluru, India");
+        save("Data Engineer", JobStatus.CLOSED, "Bengaluru, India");
+        save("Android Engineer", JobStatus.OPEN, "Pune");
+        save("Remote Engineer", JobStatus.OPEN, null);
+
+        mockMvc.perform(get("/api/v1/jobs").param("status", "OPEN").param("sort", "title,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].title",
+                        contains("Android Engineer", "Backend Engineer", "Remote Engineer")));
+
+        mockMvc.perform(get("/api/v1/jobs").param("location", "bengaluru").param("sort", "title,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].title", contains("Backend Engineer", "Data Engineer")));
+
+        mockMvc.perform(get("/api/v1/jobs").param("status", "OPEN").param("location", " BENGALURU "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].title", contains("Backend Engineer")))
+                .andExpect(jsonPath("$.totalElements", is(1)));
+    }
+
+    @Test
+    void treatsWildcardsInTheLocationFilterLiterally() throws Exception {
+        save("Backend Engineer", JobStatus.OPEN, "Pune");
+
+        mockMvc.perform(get("/api/v1/jobs").param("location", "%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
+    }
+
+    @Test
+    void rejectsUnknownJobStatusFilter() throws Exception {
+        mockMvc.perform(get("/api/v1/jobs").param("status", "ARCHIVED")).andExpect(status().isBadRequest());
+    }
+
+    private Long save(String title, JobStatus status, String location) {
+        Job job = new Job();
+        job.setTitle(title);
+        job.setDescription("Description of " + title);
+        job.setStatus(status);
+        job.setLocation(location);
+        return repository.save(job).getId();
+    }
+
     private Long save(String title) {
         Job job = new Job();
         job.setTitle(title);
