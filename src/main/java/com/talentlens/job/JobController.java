@@ -36,10 +36,12 @@ public class JobController {
     }
 
     @GetMapping
-    public PageResponse<JobResponse> findAll(@RequestParam(defaultValue = "0") int page,
+    public PageResponse<JobResponse> findAll(@RequestParam(required = false) JobStatus status,
+            @RequestParam(required = false) String location,
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort) {
-        return service.findAll(PageQuery.of(page, size, sort, SORTABLE_FIELDS));
+        return service.findAll(status, location, PageQuery.of(page, size, sort, SORTABLE_FIELDS));
     }
 
     @GetMapping("/{id}")

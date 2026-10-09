@@ -36,10 +36,11 @@ public class CandidateController {
     }
 
     @GetMapping
-    public PageResponse<CandidateResponse> findAll(@RequestParam(defaultValue = "0") int page,
+    public PageResponse<CandidateResponse> findAll(@RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort) {
-        return service.findAll(PageQuery.of(page, size, sort, SORTABLE_FIELDS));
+        return service.findAll(q, PageQuery.of(page, size, sort, SORTABLE_FIELDS));
     }
 
     @GetMapping("/{id}")

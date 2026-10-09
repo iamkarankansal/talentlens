@@ -1,8 +1,14 @@
 package com.talentlens.job;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +29,8 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<JobResponse> findAll(Pageable pageable) {
-        return PageResponse.from(repository.findAll(pageable), JobResponse::from);
+    public PageResponse<JobResponse> findAll(JobStatus status, String location, Pageable pageable) {
+        return PageResponse.from(repository.findAll(matching(status, location), pageable), JobResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +50,20 @@ public class JobService {
 
     public Job getOrThrow(Long id) {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job", id));
+    }
+
+    private Specification<Job> matching(JobStatus status, String location) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (location != null && !location.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("location")), LikePattern.contains(location),
+                        LikePattern.ESCAPE));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     private void apply(Job job, JobRequest request) {

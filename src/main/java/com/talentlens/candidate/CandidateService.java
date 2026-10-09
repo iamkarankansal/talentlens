@@ -1,9 +1,11 @@
 package com.talentlens.candidate;
 
 import com.talentlens.common.ConflictException;
+import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +30,8 @@ public class CandidateService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<CandidateResponse> findAll(Pageable pageable) {
-        return PageResponse.from(repository.findAll(pageable), CandidateResponse::from);
+    public PageResponse<CandidateResponse> findAll(String search, Pageable pageable) {
+        return PageResponse.from(repository.findAll(matching(search), pageable), CandidateResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +55,18 @@ public class CandidateService {
 
     public Candidate getOrThrow(Long id) {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Candidate", id));
+    }
+
+    private Specification<Candidate> matching(String search) {
+        return (root, query, cb) -> {
+            if (search == null || search.isBlank()) {
+                return cb.conjunction();
+            }
+            String pattern = LikePattern.contains(search);
+            return cb.or(
+                    cb.like(cb.lower(root.get("fullName")), pattern, LikePattern.ESCAPE),
+                    cb.like(cb.lower(root.get("email")), pattern, LikePattern.ESCAPE));
+        };
     }
 
     private void apply(Candidate candidate, CandidateRequest request, String email) {
