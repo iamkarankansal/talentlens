@@ -10,6 +10,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 
 - Jobs API: create, list, read, update, delete
 - Paginated, sortable job and candidate lists
+- Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Consistent JSON error responses, including per-field validation errors
@@ -39,10 +40,10 @@ mvn test
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/jobs` | Create a job |
-| `GET` | `/api/v1/jobs` | List jobs (paginated) |
+| `GET` | `/api/v1/jobs` | List jobs (paginated; filter with `status`, `location`) |
 | `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or delete a job |
 | `POST` | `/api/v1/candidates` | Create a candidate |
-| `GET` | `/api/v1/candidates` | List candidates (paginated) |
+| `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`) |
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
 | `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume |
 
@@ -60,6 +61,13 @@ List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`f
 
 ```bash
 curl 'localhost:8080/api/v1/jobs?page=0&size=10&sort=title,asc'
+```
+
+The job list can be narrowed with `status` (`DRAFT`, `OPEN` or `CLOSED`) and `location` (case-insensitive, matches any part of the location). The candidate list takes `q`, which matches any part of the name or email, ignoring case. Filters combine with paging and sorting.
+
+```bash
+curl 'localhost:8080/api/v1/jobs?status=OPEN&location=bengaluru'
+curl 'localhost:8080/api/v1/candidates?q=verma'
 ```
 
 ## Project layout
