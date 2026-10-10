@@ -7,7 +7,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Resume parsing into a structured profile
 - [x] Pagination and sorting on job and candidate lists
 - [x] Filter jobs by status and location; search candidates by name or email
-- [ ] OpenAPI / Swagger UI documentation
+- [x] OpenAPI / Swagger UI documentation
 - [ ] Flyway migrations replacing `ddl-auto: update`
 - [ ] Persist the parsed resume profile on the candidate (skills, experience, headline)
 - [ ] Resume upload as PDF with text extraction

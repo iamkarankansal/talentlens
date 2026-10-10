@@ -13,6 +13,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
+- OpenAPI 3 description of the API with a Swagger UI to try it out
 - Consistent JSON error responses, including per-field validation errors
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed
 
@@ -70,6 +71,8 @@ curl 'localhost:8080/api/v1/jobs?status=OPEN&location=bengaluru'
 curl 'localhost:8080/api/v1/candidates?q=verma'
 ```
 
+Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
+
 ## Project layout
 
 ```
@@ -77,6 +80,7 @@ src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
 ├── ai/          Model-backed features (resume parsing)
+├── config/      Application configuration (OpenAPI)
 └── common/      Error handling shared by all modules
 ```
 
@@ -88,3 +92,4 @@ src/main/java/com/talentlens
 | `OPENAI_MODEL` | `gpt-4o-mini` | Chat model |
 | `DB_URL` | `jdbc:postgresql://localhost:5432/talentlens` | Database URL |
 | `DB_USERNAME` / `DB_PASSWORD` | `talentlens` | Database credentials |
+| `API_DOCS_ENABLED` | `true` | Serve Swagger UI and the OpenAPI document |
