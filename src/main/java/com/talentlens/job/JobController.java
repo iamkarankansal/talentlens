@@ -5,6 +5,7 @@ import java.util.Set;
 
 import com.talentlens.common.PageQuery;
 import com.talentlens.common.PageResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Jobs", description = "Job postings")
 @RequestMapping("/api/v1/jobs")
 public class JobController {
 

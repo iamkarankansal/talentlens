@@ -3,12 +3,14 @@ package com.talentlens.ai;
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
 import com.talentlens.common.ConflictException;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Resume analysis", description = "Model-backed resume parsing")
 @RequestMapping("/api/v1/candidates/{candidateId}/resume")
 public class ResumeAnalysisController {
 
