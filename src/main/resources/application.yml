@@ -7,8 +7,12 @@ spring:
     password: ${DB_PASSWORD:talentlens}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
+  flyway:
+    # Databases created before migrations existed already hold the V1 schema.
+    baseline-on-migrate: true
+    baseline-version: "1"
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:not-set}
