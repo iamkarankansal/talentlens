@@ -14,6 +14,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - OpenAPI 3 description of the API with a Swagger UI to try it out
+- Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed
 
@@ -72,6 +73,8 @@ curl 'localhost:8080/api/v1/candidates?q=verma'
 ```
 
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
+
+The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. A database created before migrations were introduced is baselined at version 1 automatically.
 
 ## Project layout
 
