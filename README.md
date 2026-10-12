@@ -12,6 +12,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Paginated, sortable job and candidate lists
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
+- Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
 - OpenAPI 3 description of the API with a Swagger UI to try it out
@@ -48,6 +49,7 @@ mvn test
 | `POST` | `/api/v1/candidates` | Create a candidate |
 | `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`) |
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
+| `POST` | `/api/v1/candidates/{id}/resume` | Upload a PDF resume (multipart field `file`) and store its text |
 | `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume and store it on the candidate |
 
 Example:
@@ -58,6 +60,12 @@ curl -X POST localhost:8080/api/v1/candidates \
   -d '{"fullName":"Asha Verma","email":"asha@example.com","resumeText":"5 years of Java, Spring Boot and Kafka..."}'
 
 curl -X POST localhost:8080/api/v1/candidates/1/resume/parse
+```
+
+A resume can also be uploaded as a PDF. The text is extracted with Apache PDFBox and replaces the candidate's resume text. Files that are not PDFs, password-protected PDFs and scanned PDFs with no text layer are rejected with `400`; files over `RESUME_MAX_FILE_SIZE` get `413`.
+
+```bash
+curl -X POST localhost:8080/api/v1/candidates/1/resume -F file=@resume.pdf
 ```
 
 Parsing a resume saves the headline, years of experience and skills on the candidate, so later reads of the candidate include `headline`, `experienceYears`, `skills` and `profileParsedAt`. Skills are trimmed and de-duplicated ignoring case. Changing a candidate's resume text clears the stored profile until the resume is parsed again.
@@ -99,3 +107,4 @@ src/main/java/com/talentlens
 | `DB_URL` | `jdbc:postgresql://localhost:5432/talentlens` | Database URL |
 | `DB_USERNAME` / `DB_PASSWORD` | `talentlens` | Database credentials |
 | `API_DOCS_ENABLED` | `true` | Serve Swagger UI and the OpenAPI document |
+| `RESUME_MAX_FILE_SIZE` | `5MB` | Largest resume PDF accepted for upload |

@@ -10,7 +10,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] OpenAPI / Swagger UI documentation
 - [x] Flyway migrations replacing `ddl-auto: update`
 - [x] Persist the parsed resume profile on the candidate (skills, experience, headline)
-- [ ] Resume upload as PDF with text extraction
+- [x] Resume upload as PDF with text extraction
 
 ## Applications
 - [ ] Application entity linking a candidate to a job, with a status pipeline
