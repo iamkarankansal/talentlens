@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import com.talentlens.common.BadRequestException;
 import com.talentlens.common.ConflictException;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
@@ -22,6 +23,7 @@ public class CandidateService {
 
     private static final int MAX_TEXT_LENGTH = 255;
     private static final int MAX_SKILLS = 100;
+    private static final int MAX_RESUME_LENGTH = 50000;
 
     private final CandidateRepository repository;
 
@@ -61,6 +63,21 @@ public class CandidateService {
 
     public void delete(Long id) {
         repository.delete(getOrThrow(id));
+    }
+
+    /**
+     * Replaces the candidate's resume text, clearing a profile parsed from the previous resume.
+     */
+    public CandidateResponse replaceResume(Long id, String resumeText) {
+        Candidate candidate = getOrThrow(id);
+        if (resumeText.length() > MAX_RESUME_LENGTH) {
+            throw new BadRequestException("The resume text is longer than " + MAX_RESUME_LENGTH + " characters");
+        }
+        if (!resumeText.equals(candidate.getResumeText())) {
+            candidate.clearProfile();
+        }
+        candidate.setResumeText(resumeText);
+        return CandidateResponse.from(candidate);
     }
 
     /**
