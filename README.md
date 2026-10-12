@@ -13,6 +13,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
+- Parsed headline, years of experience and skills are stored on the candidate and returned with it
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -47,7 +48,7 @@ mvn test
 | `POST` | `/api/v1/candidates` | Create a candidate |
 | `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`) |
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
-| `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume |
+| `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume and store it on the candidate |
 
 Example:
 
@@ -58,6 +59,8 @@ curl -X POST localhost:8080/api/v1/candidates \
 
 curl -X POST localhost:8080/api/v1/candidates/1/resume/parse
 ```
+
+Parsing a resume saves the headline, years of experience and skills on the candidate, so later reads of the candidate include `headline`, `experienceYears`, `skills` and `profileParsedAt`. Skills are trimmed and de-duplicated ignoring case. Changing a candidate's resume text clears the stored profile until the resume is parsed again.
 
 List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`field` or `field,asc|desc`, default `createdAt,desc`), and return `content` with `page`, `size`, `totalElements` and `totalPages`. Jobs sort by `id`, `title`, `location`, `minExperienceYears`, `status` or `createdAt`; candidates by `id`, `fullName`, `email` or `createdAt`.
 
