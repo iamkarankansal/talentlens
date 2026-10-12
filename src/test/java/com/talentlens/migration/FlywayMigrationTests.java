@@ -24,12 +24,13 @@ class FlywayMigrationTests {
 
         assertThat(info.applied()).isNotEmpty();
         assertThat(info.pending()).isEmpty();
-        assertThat(info.current().getVersion().getVersion()).isEqualTo("1");
+        assertThat(info.current().getVersion().getVersion()).isEqualTo("2");
     }
 
     @Test
     void createsTheTablesTheEntitiesMapTo() {
         assertThat(jdbcTemplate.queryForObject("select count(*) from jobs", Integer.class)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("select count(*) from candidates", Integer.class)).isNotNull();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from candidate_skills", Integer.class)).isNotNull();
     }
 }
