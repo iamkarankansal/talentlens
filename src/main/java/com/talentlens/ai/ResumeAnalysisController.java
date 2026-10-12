@@ -22,6 +22,9 @@ public class ResumeAnalysisController {
         this.resumeParser = resumeParser;
     }
 
+    /**
+     * Parses the candidate's resume and stores the headline, experience and skills on the candidate.
+     */
     @PostMapping("/parse")
     public ResumeProfile parse(@PathVariable Long candidateId) {
         Candidate candidate = candidateService.getOrThrow(candidateId);
@@ -29,6 +32,9 @@ public class ResumeAnalysisController {
         if (resume == null || resume.isBlank()) {
             throw new ConflictException("Candidate " + candidateId + " has no resume text to parse");
         }
-        return resumeParser.parse(resume);
+        ResumeProfile profile = resumeParser.parse(resume);
+        candidateService.updateProfile(candidateId, profile.headline(), profile.totalExperienceYears(),
+                profile.skills());
+        return profile;
     }
 }

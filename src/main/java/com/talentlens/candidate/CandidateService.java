@@ -1,5 +1,12 @@
 package com.talentlens.candidate;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
 import com.talentlens.common.ConflictException;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
@@ -12,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class CandidateService {
+
+    private static final int MAX_TEXT_LENGTH = 255;
+    private static final int MAX_SKILLS = 100;
 
     private final CandidateRepository repository;
 
@@ -53,6 +63,16 @@ public class CandidateService {
         repository.delete(getOrThrow(id));
     }
 
+    /**
+     * Stores a parsed resume profile on the candidate, replacing any earlier one.
+     * Skills are trimmed and de-duplicated ignoring case; values that do not fit the schema are cut down.
+     */
+    public CandidateResponse updateProfile(Long id, String headline, Double experienceYears, List<String> skills) {
+        Candidate candidate = getOrThrow(id);
+        candidate.setProfile(clean(headline), validYears(experienceYears), cleanSkills(skills), Instant.now());
+        return CandidateResponse.from(candidate);
+    }
+
     public Candidate getOrThrow(Long id) {
         return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Candidate", id));
     }
@@ -73,7 +93,41 @@ public class CandidateService {
         candidate.setFullName(request.fullName().trim());
         candidate.setEmail(email);
         candidate.setPhone(request.phone());
+        if (!Objects.equals(candidate.getResumeText(), request.resumeText())) {
+            // A profile parsed from the old resume no longer describes the candidate.
+            candidate.clearProfile();
+        }
         candidate.setResumeText(request.resumeText());
+    }
+
+    private static String clean(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > MAX_TEXT_LENGTH ? trimmed.substring(0, MAX_TEXT_LENGTH) : trimmed;
+    }
+
+    private static Double validYears(Double years) {
+        if (years == null || years.isNaN() || years.isInfinite() || years < 0) {
+            return null;
+        }
+        return years;
+    }
+
+    private static List<String> cleanSkills(List<String> skills) {
+        if (skills == null) {
+            return List.of();
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> result = new ArrayList<>();
+        for (String skill : skills) {
+            String value = clean(skill);
+            if (value != null && result.size() < MAX_SKILLS && seen.add(value.toLowerCase())) {
+                result.add(value);
+            }
+        }
+        return result;
     }
 
     private String normalize(String email) {
