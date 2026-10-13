@@ -14,7 +14,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 
 ## Applications
 - [x] Application entity linking a candidate to a job, with a status pipeline
-- [ ] Application status transitions with validation; list applications per job and per candidate
+- [x] Application status transitions with validation; list applications per job and per candidate
 
 ## Matching
 - [ ] Embeddings for jobs and candidate profiles stored in pgvector

@@ -13,6 +13,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
+- Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
@@ -54,6 +55,9 @@ mvn test
 | `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume and store it on the candidate |
 | `POST` | `/api/v1/applications` | Apply a candidate to a job (`candidateId`, `jobId`) |
 | `GET` `DELETE` | `/api/v1/applications/{id}` | Read or delete an application |
+| `PUT` | `/api/v1/applications/{id}/status` | Move an application to another stage (`status`) |
+| `GET` | `/api/v1/jobs/{jobId}/applications` | List a job's applications (paginated; filter with `status`) |
+| `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
 
 Example:
 
@@ -93,6 +97,19 @@ curl -X POST localhost:8080/api/v1/applications \
   -H 'Content-Type: application/json' \
   -d '{"candidateId":1,"jobId":1}'
 ```
+
+An application moves forward one stage at a time (`APPLIED` → `SCREENING` → `INTERVIEW` → `OFFER` → `HIRED`). Any application that is still open can be moved to `REJECTED` or `WITHDRAWN`. `HIRED`, `REJECTED` and `WITHDRAWN` are final. Any other change, such as skipping a stage or reopening a rejected application, returns `409`.
+
+```bash
+curl -X PUT localhost:8080/api/v1/applications/1/status \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"SCREENING"}'
+
+curl 'localhost:8080/api/v1/jobs/1/applications?status=SCREENING'
+curl 'localhost:8080/api/v1/candidates/1/applications'
+```
+
+Application lists take the same `page`, `size` and `sort` parameters as the other lists and sort by `id`, `status`, `createdAt` or `updatedAt`.
 
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
