@@ -12,6 +12,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Paginated, sortable job and candidate lists
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
+- Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
@@ -51,6 +52,8 @@ mvn test
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
 | `POST` | `/api/v1/candidates/{id}/resume` | Upload a PDF resume (multipart field `file`) and store its text |
 | `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume and store it on the candidate |
+| `POST` | `/api/v1/applications` | Apply a candidate to a job (`candidateId`, `jobId`) |
+| `GET` `DELETE` | `/api/v1/applications/{id}` | Read or delete an application |
 
 Example:
 
@@ -83,6 +86,14 @@ curl 'localhost:8080/api/v1/jobs?status=OPEN&location=bengaluru'
 curl 'localhost:8080/api/v1/candidates?q=verma'
 ```
 
+An application links a candidate to a job and tracks where they are in the hiring pipeline: `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER` and `HIRED`, or `REJECTED` / `WITHDRAWN` when it ends early. Only `OPEN` jobs accept applications, and a candidate can apply to a job once; both cases otherwise return `409`. Deleting a candidate or a job also deletes their applications.
+
+```bash
+curl -X POST localhost:8080/api/v1/applications \
+  -H 'Content-Type: application/json' \
+  -d '{"candidateId":1,"jobId":1}'
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. A database created before migrations were introduced is baselined at version 1 automatically.
@@ -93,6 +104,7 @@ The database schema lives in `src/main/resources/db/migration` and is applied by
 src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
+├── application/ Candidates applying to jobs, and the hiring pipeline
 ├── ai/          Model-backed features (resume parsing)
 ├── config/      Application configuration (OpenAPI)
 └── common/      Error handling shared by all modules

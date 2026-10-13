@@ -13,7 +13,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Resume upload as PDF with text extraction
 
 ## Applications
-- [ ] Application entity linking a candidate to a job, with a status pipeline
+- [x] Application entity linking a candidate to a job, with a status pipeline
 - [ ] Application status transitions with validation; list applications per job and per candidate
 
 ## Matching
