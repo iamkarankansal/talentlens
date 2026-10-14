@@ -17,7 +17,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Application status transitions with validation; list applications per job and per candidate
 
 ## Matching
-- [ ] Embeddings for jobs and candidate profiles stored in pgvector
+- [x] Embeddings for jobs and candidate profiles stored in pgvector
 - [ ] Semantic candidate ranking for a job
 - [ ] Match explanation: why a candidate fits, and what is missing
 - [ ] Skill-gap report for a candidate against a job

@@ -17,6 +17,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
+- Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -58,6 +59,8 @@ mvn test
 | `PUT` | `/api/v1/applications/{id}/status` | Move an application to another stage (`status`) |
 | `GET` | `/api/v1/jobs/{jobId}/applications` | List a job's applications (paginated; filter with `status`) |
 | `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
+| `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
+| `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
 
 Example:
 
@@ -111,9 +114,16 @@ curl 'localhost:8080/api/v1/candidates/1/applications'
 
 Application lists take the same `page`, `size` and `sort` parameters as the other lists and sort by `id`, `status`, `createdAt` or `updatedAt`.
 
+Jobs and candidates can be turned into embedding vectors for semantic matching. A job's embedding covers its title, location, minimum experience and description; a candidate's covers the parsed headline, experience and skills plus the resume text (cut to the first 8000 characters). Vectors are stored in the `job_embeddings` and `candidate_embeddings` tables as pgvector `vector` columns and are replaced each time the endpoint is called. A candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Deleting a job or candidate deletes its embedding.
+
+```bash
+curl -X POST localhost:8080/api/v1/jobs/1/embedding
+curl -X POST localhost:8080/api/v1/candidates/1/embedding
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
-The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. A database created before migrations were introduced is baselined at version 1 automatically.
+The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
 
 ## Project layout
 
@@ -123,6 +133,7 @@ src/main/java/com/talentlens
 ├── candidate/   Candidates and their resume text
 ├── application/ Candidates applying to jobs, and the hiring pipeline
 ├── ai/          Model-backed features (resume parsing)
+├── matching/    Job and candidate embeddings in pgvector
 ├── config/      Application configuration (OpenAPI)
 └── common/      Error handling shared by all modules
 ```
@@ -133,6 +144,7 @@ src/main/java/com/talentlens
 |---|---|---|
 | `OPENAI_API_KEY` | none | Required for AI endpoints |
 | `OPENAI_MODEL` | `gpt-4o-mini` | Chat model |
+| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model for jobs and candidates |
 | `DB_URL` | `jdbc:postgresql://localhost:5432/talentlens` | Database URL |
 | `DB_USERNAME` / `DB_PASSWORD` | `talentlens` | Database credentials |
 | `API_DOCS_ENABLED` | `true` | Serve Swagger UI and the OpenAPI document |
