@@ -1,0 +1,94 @@
+package com.talentlens.matching;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+import com.talentlens.candidate.Candidate;
+import com.talentlens.candidate.CandidateRepository;
+import com.talentlens.common.BadRequestException;
+import com.talentlens.common.ConflictException;
+import com.talentlens.job.JobService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Ranks candidates for a job by how close their stored embeddings are to the job's embedding.
+ */
+@Service
+@Transactional(readOnly = true)
+public class MatchingService {
+
+    static final int MAX_LIMIT = 50;
+
+    private final EmbeddingStore store;
+    private final JobService jobService;
+    private final CandidateRepository candidateRepository;
+
+    public MatchingService(EmbeddingStore store, JobService jobService, CandidateRepository candidateRepository) {
+        this.store = store;
+        this.jobService = jobService;
+        this.candidateRepository = candidateRepository;
+    }
+
+    public CandidateRankingResponse rankCandidates(Long jobId, int limit) {
+        if (limit < 1 || limit > MAX_LIMIT) {
+            throw new BadRequestException("limit must be between 1 and " + MAX_LIMIT);
+        }
+        jobService.getOrThrow(jobId);
+        float[] jobVector = store.find(EmbeddingTarget.JOB, jobId).orElseThrow(() -> new ConflictException(
+                "Job " + jobId + " has no embedding yet; POST /api/v1/jobs/" + jobId + "/embedding first"));
+
+        List<Scored> scored = new ArrayList<>();
+        for (Map.Entry<Long, float[]> entry : store.findAll(EmbeddingTarget.CANDIDATE).entrySet()) {
+            Double score = cosineSimilarity(jobVector, entry.getValue());
+            if (score != null) {
+                scored.add(new Scored(entry.getKey(), score));
+            }
+        }
+        scored.sort(Comparator.comparingDouble(Scored::score).reversed().thenComparing(Scored::candidateId));
+
+        List<CandidateMatchResponse> matches = new ArrayList<>();
+        for (Scored match : scored) {
+            if (matches.size() == limit) {
+                break;
+            }
+            Candidate candidate = candidateRepository.findById(match.candidateId()).orElse(null);
+            if (candidate != null) {
+                matches.add(new CandidateMatchResponse(matches.size() + 1, candidate.getId(),
+                        candidate.getFullName(), candidate.getHeadline(), round(match.score())));
+            }
+        }
+        return new CandidateRankingResponse(jobId, scored.size(), matches);
+    }
+
+    /**
+     * Cosine similarity, or null when the vectors cannot be compared (different sizes, for example after
+     * switching embedding models, or an all-zero vector).
+     */
+    static Double cosineSimilarity(float[] a, float[] b) {
+        if (a.length == 0 || a.length != b.length) {
+            return null;
+        }
+        double dot = 0;
+        double normA = 0;
+        double normB = 0;
+        for (int i = 0; i < a.length; i++) {
+            dot += (double) a[i] * b[i];
+            normA += (double) a[i] * a[i];
+            normB += (double) b[i] * b[i];
+        }
+        if (normA == 0 || normB == 0) {
+            return null;
+        }
+        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    private static double round(double score) {
+        return Math.round(score * 10000) / 10000.0;
+    }
+
+    private record Scored(Long candidateId, double score) {
+    }
+}

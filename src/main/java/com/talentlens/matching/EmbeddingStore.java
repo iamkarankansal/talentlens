@@ -2,11 +2,14 @@ package com.talentlens.matching;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -34,6 +37,16 @@ public class EmbeddingStore {
         List<String> rows = jdbcTemplate.queryForList("select cast(embedding as varchar) from " + target.table()
                 + " where " + target.idColumn() + " = ?", String.class, id);
         return rows.isEmpty() ? Optional.empty() : Optional.of(fromText(rows.get(0)));
+    }
+
+    /**
+     * Every stored vector for the target, keyed by the owner's id.
+     */
+    public Map<Long, float[]> findAll(EmbeddingTarget target) {
+        Map<Long, float[]> vectors = new LinkedHashMap<>();
+        jdbcTemplate.query("select " + target.idColumn() + ", cast(embedding as varchar) from " + target.table(),
+                (RowCallbackHandler) rs -> vectors.put(rs.getLong(1), fromText(rs.getString(2))));
+        return vectors;
     }
 
     static String toText(float[] vector) {
