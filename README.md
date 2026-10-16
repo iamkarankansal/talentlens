@@ -19,6 +19,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
 - Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
+- Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -63,6 +64,7 @@ mvn test
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
 | `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
+| `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
 
 Example:
 
@@ -129,6 +131,12 @@ Once a job and some candidates have embeddings, `GET /api/v1/jobs/{jobId}/matche
 curl 'localhost:8080/api/v1/jobs/1/matches?limit=5'
 ```
 
+`GET /api/v1/jobs/{jobId}/matches/{candidateId}/explanation` asks the chat model why a candidate fits a job. It compares the same job and candidate texts used for embeddings and returns a short `summary`, the job requirements the candidate meets (`strengths`) and those they are missing or only partly meet (`gaps`). The response also carries the candidate's `fullName` and the ranking `score`, which is `null` unless both the job and the candidate have comparable embeddings; the explanation itself does not need embeddings. A candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Each call asks the model again, so the wording can vary.
+
+```bash
+curl localhost:8080/api/v1/jobs/1/matches/3/explanation
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -140,8 +148,8 @@ src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
 ├── application/ Candidates applying to jobs, and the hiring pipeline
-├── ai/          Model-backed features (resume parsing)
-├── matching/    Embeddings in pgvector and semantic candidate ranking
+├── ai/          Model-backed features (resume parsing, match explanations)
+├── matching/    Embeddings in pgvector, semantic candidate ranking and match explanations
 ├── config/      Application configuration (OpenAPI)
 └── common/      Error handling shared by all modules
 ```
