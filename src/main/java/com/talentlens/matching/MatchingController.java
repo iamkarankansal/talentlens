@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Matching", description = "Semantic ranking of candidates for a job")
+@Tag(name = "Matching", description = "Semantic ranking of candidates for a job and match explanations")
 public class MatchingController {
 
     private final MatchingService service;
@@ -23,5 +23,13 @@ public class MatchingController {
     public CandidateRankingResponse rankCandidates(@PathVariable Long jobId,
             @RequestParam(defaultValue = "10") int limit) {
         return service.rankCandidates(jobId, limit);
+    }
+
+    /**
+     * Explains why the candidate fits the job and what they are missing, using the language model.
+     */
+    @GetMapping("/api/v1/jobs/{jobId}/matches/{candidateId}/explanation")
+    public MatchExplanationResponse explainMatch(@PathVariable Long jobId, @PathVariable Long candidateId) {
+        return service.explainMatch(jobId, candidateId);
     }
 }
