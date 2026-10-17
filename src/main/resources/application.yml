@@ -30,6 +30,10 @@ spring:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
+talentlens:
+  security:
+    bcrypt-strength: ${BCRYPT_STRENGTH:10}
+
 management:
   endpoints:
     web:
