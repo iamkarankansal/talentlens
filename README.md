@@ -20,6 +20,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
+- Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -65,6 +66,7 @@ mvn test
 | `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
+| `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 
 Example:
 
@@ -137,6 +139,12 @@ curl 'localhost:8080/api/v1/jobs/1/matches?limit=5'
 curl localhost:8080/api/v1/jobs/1/matches/3/explanation
 ```
 
+`GET /api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` lists the skills the job requires (`requiredSkills`, extracted from the job by the chat model) and splits them into those on the candidate's parsed profile (`matchedSkills`) and those that are not (`missingSkills`). Skills the candidate has that the job does not ask for are in `additionalSkills`. Skills are compared ignoring case, spacing and hyphens, so `Spring-Boot` matches `spring boot`. `coverage` is the share of required skills the candidate has, from 0 to 1, or `null` when the job names none. The report also compares the job's `requiredExperienceYears` with the candidate's `candidateExperienceYears`; `meetsExperience` is `null` when either is unknown. The candidate's resume must be parsed first, otherwise the endpoint returns `409`; a model failure returns `503`.
+
+```bash
+curl localhost:8080/api/v1/jobs/1/matches/3/skill-gap
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -148,8 +156,8 @@ src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
 ├── application/ Candidates applying to jobs, and the hiring pipeline
-├── ai/          Model-backed features (resume parsing, match explanations)
-├── matching/    Embeddings in pgvector, semantic candidate ranking and match explanations
+├── ai/          Model-backed features (resume parsing, match explanations, skill extraction)
+├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
 ├── config/      Application configuration (OpenAPI)
 └── common/      Error handling shared by all modules
 ```
