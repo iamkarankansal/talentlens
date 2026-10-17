@@ -7,13 +7,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Matching", description = "Semantic ranking of candidates for a job and match explanations")
+@Tag(name = "Matching",
+        description = "Semantic ranking of candidates for a job, match explanations and skill-gap reports")
 public class MatchingController {
 
     private final MatchingService service;
+    private final SkillGapService skillGapService;
 
-    public MatchingController(MatchingService service) {
+    public MatchingController(MatchingService service, SkillGapService skillGapService) {
         this.service = service;
+        this.skillGapService = skillGapService;
     }
 
     /**
@@ -31,5 +34,13 @@ public class MatchingController {
     @GetMapping("/api/v1/jobs/{jobId}/matches/{candidateId}/explanation")
     public MatchExplanationResponse explainMatch(@PathVariable Long jobId, @PathVariable Long candidateId) {
         return service.explainMatch(jobId, candidateId);
+    }
+
+    /**
+     * Compares the skills the job requires with the candidate's parsed skills: matched, missing and extra.
+     */
+    @GetMapping("/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap")
+    public SkillGapResponse skillGap(@PathVariable Long jobId, @PathVariable Long candidateId) {
+        return skillGapService.report(jobId, candidateId);
     }
 }
