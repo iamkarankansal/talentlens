@@ -23,7 +23,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Skill-gap report for a candidate against a job
 
 ## Security
-- [ ] User accounts with password hashing
+- [x] User accounts with password hashing
 - [ ] JWT login
 - [ ] Roles: ADMIN, RECRUITER, CANDIDATE
 

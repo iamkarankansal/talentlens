@@ -21,6 +21,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
+- User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -67,6 +68,8 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
+| `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
+| `GET` | `/api/v1/users/{id}` | Read a user account |
 
 Example:
 
@@ -145,6 +148,14 @@ curl localhost:8080/api/v1/jobs/1/matches/3/explanation
 curl localhost:8080/api/v1/jobs/1/matches/3/skill-gap
 ```
 
+`POST /api/v1/users` creates a user account. Emails are trimmed, stored in lower case and must be unique ignoring case (`409` otherwise). Passwords must be 8 to 72 characters (BCrypt ignores anything longer) and are stored only as a salted BCrypt hash; no response ever includes the password or its hash. `BCRYPT_STRENGTH` sets the BCrypt cost (log rounds, 4 to 31).
+
+```bash
+curl -X POST localhost:8080/api/v1/users \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"recruiter@example.com","fullName":"Riya Sen","password":"a-long-passphrase"}'
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -158,7 +169,8 @@ src/main/java/com/talentlens
 ├── application/ Candidates applying to jobs, and the hiring pipeline
 ├── ai/          Model-backed features (resume parsing, match explanations, skill extraction)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
-├── config/      Application configuration (OpenAPI)
+├── user/        User accounts with hashed passwords
+├── config/      Application configuration (OpenAPI, password hashing)
 └── common/      Error handling shared by all modules
 ```
 
@@ -173,3 +185,4 @@ src/main/java/com/talentlens
 | `DB_USERNAME` / `DB_PASSWORD` | `talentlens` | Database credentials |
 | `API_DOCS_ENABLED` | `true` | Serve Swagger UI and the OpenAPI document |
 | `RESUME_MAX_FILE_SIZE` | `5MB` | Largest resume PDF accepted for upload |
+| `BCRYPT_STRENGTH` | `10` | BCrypt cost (log rounds) for password hashes |
