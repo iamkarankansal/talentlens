@@ -24,7 +24,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 
 ## Security
 - [x] User accounts with password hashing
-- [ ] JWT login
+- [x] JWT login
 - [ ] Roles: ADMIN, RECRUITER, CANDIDATE
 
 ## Recruiter assistant

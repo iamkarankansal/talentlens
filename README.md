@@ -22,6 +22,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
+- JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -70,6 +71,8 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
+| `POST` | `/api/v1/auth/login` | Exchange `email` and `password` for a JWT access token |
+| `GET` | `/api/v1/auth/me` | Read the user the bearer token belongs to |
 
 Example:
 
@@ -156,6 +159,16 @@ curl -X POST localhost:8080/api/v1/users \
   -d '{"email":"recruiter@example.com","fullName":"Riya Sen","password":"a-long-passphrase"}'
 ```
 
+`POST /api/v1/auth/login` checks an email and password and returns an `accessToken` (an HS256-signed JWT whose subject is the user id), its `tokenType` (`Bearer`) and `expiresIn` (seconds, from `JWT_EXPIRATION`). A wrong password and an unknown email both return `401` with the same message. Send the token as `Authorization: Bearer <token>`; `GET /api/v1/auth/me` returns the account it belongs to, or `401` if the token is missing, malformed, signed with another key, from another issuer, expired, or belongs to a deleted user. Set `JWT_SECRET` to at least 32 random bytes in production; without it a random key is generated at startup and every token stops working when the application restarts.
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"recruiter@example.com","password":"a-long-passphrase"}' | jq -r .accessToken)
+
+curl localhost:8080/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -170,7 +183,8 @@ src/main/java/com/talentlens
 ├── ai/          Model-backed features (resume parsing, match explanations, skill extraction)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
 ├── user/        User accounts with hashed passwords
-├── config/      Application configuration (OpenAPI, password hashing)
+├── auth/        JWT login and access tokens
+├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
 └── common/      Error handling shared by all modules
 ```
 
@@ -186,3 +200,6 @@ src/main/java/com/talentlens
 | `API_DOCS_ENABLED` | `true` | Serve Swagger UI and the OpenAPI document |
 | `RESUME_MAX_FILE_SIZE` | `5MB` | Largest resume PDF accepted for upload |
 | `BCRYPT_STRENGTH` | `10` | BCrypt cost (log rounds) for password hashes |
+| `JWT_SECRET` | random per start | HS256 signing key for access tokens, at least 32 bytes |
+| `JWT_EXPIRATION` | `1h` | How long an access token is valid (e.g. `30m`, `8h`) |
+| `JWT_ISSUER` | `talentlens` | Issuer written into and required on access tokens |
