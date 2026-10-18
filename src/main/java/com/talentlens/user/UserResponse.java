@@ -7,7 +7,7 @@ import java.time.Instant;
  */
 public record UserResponse(Long id, String email, String fullName, Instant createdAt) {
 
-    static UserResponse from(UserAccount user) {
+    public static UserResponse from(UserAccount user) {
         return new UserResponse(user.getId(), user.getEmail(), user.getFullName(), user.getCreatedAt());
     }
 }

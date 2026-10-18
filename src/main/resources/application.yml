@@ -33,6 +33,11 @@ spring:
 talentlens:
   security:
     bcrypt-strength: ${BCRYPT_STRENGTH:10}
+    jwt:
+      # At least 32 bytes. When empty, a random key is generated at startup and tokens stop working on restart.
+      secret: ${JWT_SECRET:}
+      expiration: ${JWT_EXPIRATION:1h}
+      issuer: ${JWT_ISSUER:talentlens}
 
 management:
   endpoints:
