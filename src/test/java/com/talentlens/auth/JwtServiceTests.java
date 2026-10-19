@@ -8,7 +8,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
+import com.nimbusds.jwt.SignedJWT;
 import com.talentlens.common.UnauthorizedException;
+import com.talentlens.user.Role;
 import com.talentlens.user.UserAccount;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -26,6 +28,16 @@ class JwtServiceTests {
 
         assertThat(token.expiresInSeconds()).isEqualTo(3600);
         assertThat(service.verify(token.token())).isEqualTo(42L);
+    }
+
+    @Test
+    void carriesTheUsersRoleAsAClaim() throws Exception {
+        UserAccount recruiter = user(42L);
+        recruiter.setRole(Role.RECRUITER);
+
+        String token = service(SECRET, "talentlens", NOW).issue(recruiter).token();
+
+        assertThat(SignedJWT.parse(token).getJWTClaimsSet().getStringClaim("role")).isEqualTo("RECRUITER");
     }
 
     @Test
