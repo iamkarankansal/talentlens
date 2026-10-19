@@ -33,6 +33,8 @@ spring:
 talentlens:
   security:
     bcrypt-strength: ${BCRYPT_STRENGTH:10}
+    # The account registered with this email becomes an ADMIN. Everyone else starts as a CANDIDATE.
+    admin-email: ${ADMIN_EMAIL:}
     jwt:
       # At least 32 bytes. When empty, a random key is generated at startup and tokens stop working on restart.
       secret: ${JWT_SECRET:}

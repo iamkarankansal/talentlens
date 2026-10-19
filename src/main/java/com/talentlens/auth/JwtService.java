@@ -62,6 +62,7 @@ public class JwtService {
                 .issueTime(Date.from(now))
                 .expirationTime(Date.from(expiresAt))
                 .claim("email", user.getEmail())
+                .claim("role", user.getRole() == null ? null : user.getRole().name())
                 .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         try {

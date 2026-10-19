@@ -1,9 +1,12 @@
 package com.talentlens.auth;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
+import com.talentlens.common.ForbiddenException;
 import com.talentlens.common.UnauthorizedException;
+import com.talentlens.user.Role;
 import com.talentlens.user.UserAccount;
 import com.talentlens.user.UserAccountRepository;
 import com.talentlens.user.UserResponse;
@@ -43,13 +46,31 @@ public class AuthService {
     }
 
     public UserResponse currentUser(String authorizationHeader) {
+        return UserResponse.from(authenticate(authorizationHeader));
+    }
+
+    /**
+     * Resolves the user a bearer token belongs to, or fails with {@code 401}. The user's role is read from the
+     * database rather than the token, so a role change applies to tokens issued before it.
+     */
+    public UserAccount authenticate(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.regionMatches(true, 0, BEARER_PREFIX, 0,
                 BEARER_PREFIX.length())) {
             throw new UnauthorizedException("A bearer access token is required");
         }
         Long userId = jwtService.verify(authorizationHeader.substring(BEARER_PREFIX.length()).trim());
         return repository.findById(userId)
-                .map(UserResponse::from)
                 .orElseThrow(() -> new UnauthorizedException("Invalid or expired access token"));
+    }
+
+    /**
+     * Like {@link #authenticate(String)}, but also fails with {@code 403} unless the user has one of the roles.
+     */
+    public UserAccount requireRole(String authorizationHeader, Role... allowed) {
+        UserAccount user = authenticate(authorizationHeader);
+        if (!Arrays.asList(allowed).contains(user.getRole())) {
+            throw new ForbiddenException("This action requires one of the roles " + Arrays.toString(allowed));
+        }
+        return user;
     }
 }
