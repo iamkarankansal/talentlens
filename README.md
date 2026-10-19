@@ -23,6 +23,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
+- Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
@@ -71,6 +72,7 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
+| `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
 | `POST` | `/api/v1/auth/login` | Exchange `email` and `password` for a JWT access token |
 | `GET` | `/api/v1/auth/me` | Read the user the bearer token belongs to |
 
@@ -169,6 +171,15 @@ TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login \
 curl localhost:8080/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
 ```
 
+Every account has a `role`: `ADMIN`, `RECRUITER` or `CANDIDATE`. It is returned with the user and written into access tokens as the `role` claim. Registration always creates a `CANDIDATE`, except for the account registered with `ADMIN_EMAIL`, which becomes the first `ADMIN`. An admin changes roles with `PUT /api/v1/users/{id}/role`; without a token the endpoint returns `401`, with a non-admin token `403`, and demoting the last remaining admin returns `409`. Roles are checked against the database, so a change applies straight away, even to tokens issued before it.
+
+```bash
+curl -X PUT localhost:8080/api/v1/users/2/role \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"role":"RECRUITER"}'
+```
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -182,7 +193,7 @@ src/main/java/com/talentlens
 ├── application/ Candidates applying to jobs, and the hiring pipeline
 ├── ai/          Model-backed features (resume parsing, match explanations, skill extraction)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
-├── user/        User accounts with hashed passwords
+├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
 ├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
 └── common/      Error handling shared by all modules
@@ -203,3 +214,4 @@ src/main/java/com/talentlens
 | `JWT_SECRET` | random per start | HS256 signing key for access tokens, at least 32 bytes |
 | `JWT_EXPIRATION` | `1h` | How long an access token is valid (e.g. `30m`, `8h`) |
 | `JWT_ISSUER` | `talentlens` | Issuer written into and required on access tokens |
+| `ADMIN_EMAIL` | none | The account registered with this email becomes an `ADMIN` |
