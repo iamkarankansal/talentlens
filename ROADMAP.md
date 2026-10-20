@@ -28,7 +28,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Roles: ADMIN, RECRUITER, CANDIDATE
 
 ## Recruiter assistant
-- [ ] RAG chat over the candidate pool
+- [x] RAG chat over the candidate pool
 - [ ] Interview question generator tailored to a candidate and job
 - [ ] Tool-calling agent: shortlist candidates for a job
 - [ ] Tool-calling agent: draft rejection and next-round emails

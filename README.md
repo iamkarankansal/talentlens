@@ -21,6 +21,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
+- Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
@@ -70,6 +71,7 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
+| `POST` | `/api/v1/assistant/chat` | Ask the recruiter assistant a question about the candidate pool (`question`, `topK`) |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
@@ -153,6 +155,14 @@ curl localhost:8080/api/v1/jobs/1/matches/3/explanation
 curl localhost:8080/api/v1/jobs/1/matches/3/skill-gap
 ```
 
+`POST /api/v1/assistant/chat` answers a recruiter's `question` (up to 2000 characters) about the candidate pool with retrieval-augmented generation. The question is embedded with the embedding model, the `topK` candidates (1-20, default 5) whose stored embeddings are closest to it are retrieved, and their profiles (headline, experience, skills and the start of the resume) are given to the chat model, which answers from those profiles only. The response has the `answer` and the `sources` it was based on, each with `candidateId`, `fullName`, `headline` and similarity `score`. Only candidates with an embedding are searched; if none have one the endpoint returns `409`, and a model failure returns `503`.
+
+```bash
+curl -X POST localhost:8080/api/v1/assistant/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Who has run Kafka in production?","topK":3}'
+```
+
 `POST /api/v1/users` creates a user account. Emails are trimmed, stored in lower case and must be unique ignoring case (`409` otherwise). Passwords must be 8 to 72 characters (BCrypt ignores anything longer) and are stored only as a salted BCrypt hash; no response ever includes the password or its hash. `BCRYPT_STRENGTH` sets the BCrypt cost (log rounds, 4 to 31).
 
 ```bash
@@ -191,8 +201,9 @@ src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
 ├── application/ Candidates applying to jobs, and the hiring pipeline
-├── ai/          Model-backed features (resume parsing, match explanations, skill extraction)
+├── ai/          Model-backed features (resume parsing, match explanations, skill extraction, assistant answers)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
+├── assistant/   Recruiter assistant: chat over the candidate pool
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
 ├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
