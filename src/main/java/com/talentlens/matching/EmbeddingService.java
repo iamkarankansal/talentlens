@@ -60,7 +60,7 @@ public class EmbeddingService {
         return limit(text.toString());
     }
 
-    static String candidateText(Candidate candidate) {
+    public static String candidateText(Candidate candidate) {
         StringBuilder text = new StringBuilder();
         append(text, "Headline", candidate.getHeadline());
         if (candidate.getExperienceYears() != null) {

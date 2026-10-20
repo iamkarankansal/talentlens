@@ -105,7 +105,7 @@ public class MatchingService {
      * Cosine similarity, or null when the vectors cannot be compared (different sizes, for example after
      * switching embedding models, or an all-zero vector).
      */
-    static Double cosineSimilarity(float[] a, float[] b) {
+    public static Double cosineSimilarity(float[] a, float[] b) {
         if (a.length == 0 || a.length != b.length) {
             return null;
         }
