@@ -49,7 +49,7 @@ public class EmbeddingService {
         return embed(EmbeddingTarget.CANDIDATE, id, text);
     }
 
-    static String jobText(Job job) {
+    public static String jobText(Job job) {
         StringBuilder text = new StringBuilder();
         append(text, "Title", job.getTitle());
         append(text, "Location", job.getLocation());
