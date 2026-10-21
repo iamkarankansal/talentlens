@@ -22,6 +22,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
+- Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
@@ -72,6 +73,7 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 | `POST` | `/api/v1/assistant/chat` | Ask the recruiter assistant a question about the candidate pool (`question`, `topK`) |
+| `POST` | `/api/v1/assistant/interview-questions` | Generate interview questions tailored to a candidate and job (`jobId`, `candidateId`, `count`) |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
@@ -163,6 +165,14 @@ curl -X POST localhost:8080/api/v1/assistant/chat \
   -d '{"question":"Who has run Kafka in production?","topK":3}'
 ```
 
+`POST /api/v1/assistant/interview-questions` asks the chat model for `count` interview questions (1-15, default 5) tailored to one candidate and one job. It reads the same job and candidate texts used for embeddings and match explanations, so it does not need embeddings, and returns the candidate's `fullName`, the `jobTitle` and the `questions`, each with the `question` to ask, its `focus` (the job requirement or candidate claim it tests) and a one-line `rationale`. The questions verify the experience the candidate claims and probe the requirements their profile does not show. Unknown job or candidate ids return `404`, a candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Each call asks the model again, so the questions can vary.
+
+```bash
+curl -X POST localhost:8080/api/v1/assistant/interview-questions \
+  -H 'Content-Type: application/json' \
+  -d '{"jobId":1,"candidateId":3,"count":4}'
+```
+
 `POST /api/v1/users` creates a user account. Emails are trimmed, stored in lower case and must be unique ignoring case (`409` otherwise). Passwords must be 8 to 72 characters (BCrypt ignores anything longer) and are stored only as a salted BCrypt hash; no response ever includes the password or its hash. `BCRYPT_STRENGTH` sets the BCrypt cost (log rounds, 4 to 31).
 
 ```bash
@@ -201,9 +211,9 @@ src/main/java/com/talentlens
 ├── job/         Job postings
 ├── candidate/   Candidates and their resume text
 ├── application/ Candidates applying to jobs, and the hiring pipeline
-├── ai/          Model-backed features (resume parsing, match explanations, skill extraction, assistant answers)
+├── ai/          Model-backed features (resume parsing, match explanations, skill extraction, assistant answers, interview questions)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
-├── assistant/   Recruiter assistant: chat over the candidate pool
+├── assistant/   Recruiter assistant: chat over the candidate pool and interview questions
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
 ├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
