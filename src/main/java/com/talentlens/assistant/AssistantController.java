@@ -8,15 +8,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Tag(name = "Recruiter assistant",
-        description = "Questions answered from the candidate pool and tailored interview questions")
+        description = "Questions answered from the candidate pool, tailored interview questions and agent shortlists")
 public class AssistantController {
 
     private final CandidatePoolChatService service;
     private final InterviewQuestionService interviewQuestionService;
+    private final ShortlistService shortlistService;
 
-    public AssistantController(CandidatePoolChatService service, InterviewQuestionService interviewQuestionService) {
+    public AssistantController(CandidatePoolChatService service, InterviewQuestionService interviewQuestionService,
+                               ShortlistService shortlistService) {
         this.service = service;
         this.interviewQuestionService = interviewQuestionService;
+        this.shortlistService = shortlistService;
     }
 
     /**
@@ -36,5 +39,14 @@ public class AssistantController {
     public InterviewQuestionsResponse interviewQuestions(@Valid @RequestBody InterviewQuestionsRequest request) {
         return interviewQuestionService.generate(request.jobId(), request.candidateId(),
                 request.count() == null ? InterviewQuestionService.DEFAULT_COUNT : request.count());
+    }
+
+    /**
+     * Lets a tool-calling agent rank candidates for the job, read their profiles and pick a shortlist.
+     */
+    @PostMapping("/api/v1/assistant/shortlist")
+    public ShortlistResponse shortlist(@Valid @RequestBody ShortlistRequest request) {
+        return shortlistService.shortlist(request.jobId(),
+                request.size() == null ? ShortlistService.DEFAULT_SIZE : request.size());
     }
 }
