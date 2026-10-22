@@ -23,6 +23,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
 - Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
+- Shortlisting agent: the model calls tools to rank candidates for a job and read their profiles, then picks a shortlist with a reason for each; picks that are not real candidates are dropped
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
@@ -74,6 +75,7 @@ mvn test
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 | `POST` | `/api/v1/assistant/chat` | Ask the recruiter assistant a question about the candidate pool (`question`, `topK`) |
 | `POST` | `/api/v1/assistant/interview-questions` | Generate interview questions tailored to a candidate and job (`jobId`, `candidateId`, `count`) |
+| `POST` | `/api/v1/assistant/shortlist` | Let the tool-calling agent shortlist candidates for a job (`jobId`, `size`, default 5) |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
