@@ -31,7 +31,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] RAG chat over the candidate pool
 - [x] Interview question generator tailored to a candidate and job
 - [x] Tool-calling agent: shortlist candidates for a job
-- [ ] Tool-calling agent: draft rejection and next-round emails
+- [x] Tool-calling agent: draft rejection and next-round emails
 
 ## Release
 - [ ] Redis caching for job and match results

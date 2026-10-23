@@ -24,6 +24,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
 - Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
 - Shortlisting agent: the model calls tools to rank candidates for a job and read their profiles, then picks a shortlist with a reason for each; picks that are not real candidates are dropped
+- Email drafting agent: the model calls tools to read an application and the candidate's profile, then drafts a rejection or next-round email for the recruiter to review; nothing is sent
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
@@ -76,6 +77,7 @@ mvn test
 | `POST` | `/api/v1/assistant/chat` | Ask the recruiter assistant a question about the candidate pool (`question`, `topK`) |
 | `POST` | `/api/v1/assistant/interview-questions` | Generate interview questions tailored to a candidate and job (`jobId`, `candidateId`, `count`) |
 | `POST` | `/api/v1/assistant/shortlist` | Let the tool-calling agent shortlist candidates for a job (`jobId`, `size`, default 5) |
+| `POST` | `/api/v1/assistant/emails` | Let the tool-calling agent draft a rejection or next-round email for an application (`applicationId`, `type`, `note`) |
 | `POST` | `/api/v1/users` | Register a user account (`email`, `fullName`, `password`) |
 | `GET` | `/api/v1/users/{id}` | Read a user account |
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
@@ -175,6 +177,14 @@ curl -X POST localhost:8080/api/v1/assistant/interview-questions \
   -d '{"jobId":1,"candidateId":3,"count":4}'
 ```
 
+`POST /api/v1/assistant/emails` drafts an email to the candidate on one application. `type` is `REJECTION` or `NEXT_ROUND`, and an optional `note` (up to 500 characters) passes the recruiter's instructions to the model. The agent calls the `applicationDetails` tool (candidate name, job, current stage and the stage they are invited to) and the `candidateProfile` tool, then returns a `subject` and `body`. The response adds the recipient `to` (from the candidate record, never from the model), `candidateName`, `jobTitle`, `nextStage` (null for a rejection) and the `toolCalls` the agent made. A rejection can be drafted unless the application is `HIRED` or `WITHDRAWN`; a next-round email only from `APPLIED`, `SCREENING` or `INTERVIEW`, inviting the candidate to the following stage. Other stages return `409`, an unknown application `404`, and a model failure or an empty body `503`. The draft is not sent and the application status is not changed.
+
+```bash
+curl -X POST localhost:8080/api/v1/assistant/emails \
+  -H 'Content-Type: application/json' \
+  -d '{"applicationId":1,"type":"NEXT_ROUND","note":"The technical interview is remote"}'
+```
+
 `POST /api/v1/users` creates a user account. Emails are trimmed, stored in lower case and must be unique ignoring case (`409` otherwise). Passwords must be 8 to 72 characters (BCrypt ignores anything longer) and are stored only as a salted BCrypt hash; no response ever includes the password or its hash. `BCRYPT_STRENGTH` sets the BCrypt cost (log rounds, 4 to 31).
 
 ```bash
@@ -215,7 +225,7 @@ src/main/java/com/talentlens
 ├── application/ Candidates applying to jobs, and the hiring pipeline
 ├── ai/          Model-backed features (resume parsing, match explanations, skill extraction, assistant answers, interview questions)
 ├── matching/    Embeddings in pgvector, semantic candidate ranking, match explanations and skill gaps
-├── assistant/   Recruiter assistant: chat over the candidate pool and interview questions
+├── assistant/   Recruiter assistant: chat over the candidate pool, interview questions, shortlisting and email agents
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
 ├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
