@@ -8,18 +8,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Tag(name = "Recruiter assistant",
-        description = "Questions answered from the candidate pool, tailored interview questions and agent shortlists")
+        description = "Questions answered from the candidate pool, tailored interview questions, agent shortlists and candidate email drafts")
 public class AssistantController {
 
     private final CandidatePoolChatService service;
     private final InterviewQuestionService interviewQuestionService;
     private final ShortlistService shortlistService;
+    private final EmailDraftService emailDraftService;
 
     public AssistantController(CandidatePoolChatService service, InterviewQuestionService interviewQuestionService,
-                               ShortlistService shortlistService) {
+                               ShortlistService shortlistService, EmailDraftService emailDraftService) {
         this.service = service;
         this.interviewQuestionService = interviewQuestionService;
         this.shortlistService = shortlistService;
+        this.emailDraftService = emailDraftService;
     }
 
     /**
@@ -48,5 +50,14 @@ public class AssistantController {
     public ShortlistResponse shortlist(@Valid @RequestBody ShortlistRequest request) {
         return shortlistService.shortlist(request.jobId(),
                 request.size() == null ? ShortlistService.DEFAULT_SIZE : request.size());
+    }
+
+    /**
+     * Lets a tool-calling agent read the application and candidate profile and draft a rejection or
+     * next-round email. The draft is returned for the recruiter to review; nothing is sent.
+     */
+    @PostMapping("/api/v1/assistant/emails")
+    public EmailDraftResponse draftEmail(@Valid @RequestBody EmailDraftRequest request) {
+        return emailDraftService.draft(request.applicationId(), request.type(), request.note());
     }
 }
