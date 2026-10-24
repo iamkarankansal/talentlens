@@ -6,7 +6,11 @@ import java.util.List;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
+import com.talentlens.config.CacheConfig;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -34,16 +38,27 @@ public class JobService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.JOBS, key = "#id")
     public JobResponse findById(Long id) {
         return JobResponse.from(getOrThrow(id));
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id"),
+            @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS},
+                    allEntries = true)
+    })
     public JobResponse update(Long id, JobRequest request) {
         Job job = getOrThrow(id);
         apply(job, request);
         return JobResponse.from(job);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id"),
+            @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS},
+                    allEntries = true)
+    })
     public void delete(Long id) {
         repository.delete(getOrThrow(id));
     }

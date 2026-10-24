@@ -12,6 +12,8 @@ import com.talentlens.common.ConflictException;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
+import com.talentlens.config.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,7 @@ public class CandidateService {
         return CandidateResponse.from(getOrThrow(id));
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public CandidateResponse update(Long id, CandidateRequest request) {
         Candidate candidate = getOrThrow(id);
         String email = normalize(request.email());
@@ -61,6 +64,7 @@ public class CandidateService {
         return CandidateResponse.from(candidate);
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public void delete(Long id) {
         repository.delete(getOrThrow(id));
     }
@@ -68,6 +72,7 @@ public class CandidateService {
     /**
      * Replaces the candidate's resume text, clearing a profile parsed from the previous resume.
      */
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public CandidateResponse replaceResume(Long id, String resumeText) {
         Candidate candidate = getOrThrow(id);
         if (resumeText.length() > MAX_RESUME_LENGTH) {
@@ -84,6 +89,7 @@ public class CandidateService {
      * Stores a parsed resume profile on the candidate, replacing any earlier one.
      * Skills are trimmed and de-duplicated ignoring case; values that do not fit the schema are cut down.
      */
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public CandidateResponse updateProfile(Long id, String headline, Double experienceYears, List<String> skills) {
         Candidate candidate = getOrThrow(id);
         candidate.setProfile(clean(headline), validYears(experienceYears), cleanSkills(skills), Instant.now());

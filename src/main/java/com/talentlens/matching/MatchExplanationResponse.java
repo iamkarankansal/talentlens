@@ -1,5 +1,6 @@
 package com.talentlens.matching;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -7,5 +8,6 @@ import java.util.List;
  * ranking, or null when the job or the candidate has no comparable embedding.
  */
 public record MatchExplanationResponse(Long jobId, Long candidateId, String fullName, Double score,
-                                       String summary, List<String> strengths, List<String> gaps) {
+                                       String summary, List<String> strengths, List<String> gaps)
+        implements Serializable {
 }

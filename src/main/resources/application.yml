@@ -13,6 +13,19 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  cache:
+    # redis, simple (in-memory, per instance) or none.
+    type: ${CACHE_TYPE:simple}
+    redis:
+      time-to-live: ${CACHE_TTL:10m}
+      key-prefix: "talentlens:"
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
   flyway:
     # Databases created before migrations existed already hold the V1 schema.
     baseline-on-migrate: true
@@ -42,6 +55,10 @@ talentlens:
       issuer: ${JWT_ISSUER:talentlens}
 
 management:
+  health:
+    redis:
+      # Turn on together with CACHE_TYPE=redis, otherwise health reports DOWN without a Redis server.
+      enabled: ${REDIS_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

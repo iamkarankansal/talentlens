@@ -13,8 +13,10 @@ import com.talentlens.candidate.CandidateRepository;
 import com.talentlens.common.BadRequestException;
 import com.talentlens.common.ConflictException;
 import com.talentlens.common.ResourceNotFoundException;
+import com.talentlens.config.CacheConfig;
 import com.talentlens.job.Job;
 import com.talentlens.job.JobService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,7 @@ public class MatchingService {
         this.matchExplainer = matchExplainer;
     }
 
+    @Cacheable(cacheNames = CacheConfig.CANDIDATE_RANKINGS, key = "#jobId + ':' + #limit")
     public CandidateRankingResponse rankCandidates(Long jobId, int limit) {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new BadRequestException("limit must be between 1 and " + MAX_LIMIT);
@@ -72,6 +75,7 @@ public class MatchingService {
         return new CandidateRankingResponse(jobId, scored.size(), matches);
     }
 
+    @Cacheable(cacheNames = CacheConfig.MATCH_EXPLANATIONS, key = "#jobId + ':' + #candidateId")
     public MatchExplanationResponse explainMatch(Long jobId, Long candidateId) {
         Job job = jobService.getOrThrow(jobId);
         Candidate candidate = candidateRepository.findById(candidateId)

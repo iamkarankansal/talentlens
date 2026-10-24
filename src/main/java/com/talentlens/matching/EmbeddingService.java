@@ -6,9 +6,11 @@ import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
 import com.talentlens.common.AiUnavailableException;
 import com.talentlens.common.ConflictException;
+import com.talentlens.config.CacheConfig;
 import com.talentlens.job.Job;
 import com.talentlens.job.JobService;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,11 +37,13 @@ public class EmbeddingService {
         this.candidateService = candidateService;
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public EmbeddingResponse embedJob(Long id) {
         Job job = jobService.getOrThrow(id);
         return embed(EmbeddingTarget.JOB, id, jobText(job));
     }
 
+    @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
     public EmbeddingResponse embedCandidate(Long id) {
         Candidate candidate = candidateService.getOrThrow(id);
         String text = candidateText(candidate);

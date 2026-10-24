@@ -5,8 +5,20 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  # Caching is off by default so tests see every write; CachingApiTests turns on the in-memory cache.
+  cache:
+    type: none
+  data:
+    redis:
+      repositories:
+        enabled: false
   flyway:
     locations: "classpath:db/migration,classpath:db/vendor/{vendor}"
   ai:
     openai:
       api-key: test-key
+
+management:
+  health:
+    redis:
+      enabled: false
