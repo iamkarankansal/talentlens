@@ -34,7 +34,7 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Tool-calling agent: draft rejection and next-round emails
 
 ## Release
-- [ ] Redis caching for job and match results
+- [x] Redis caching for job and match results
 - [ ] Testcontainers integration tests against real PostgreSQL
 - [ ] CSV export of ranked candidates
 - [ ] v1.0: architecture overview and end-to-end walkthrough in the README, version bump to 1.0.0

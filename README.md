@@ -25,6 +25,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
 - Shortlisting agent: the model calls tools to rank candidates for a job and read their profiles, then picks a shortlist with a reason for each; picks that are not real candidates are dropped
 - Email drafting agent: the model calls tools to read an application and the candidate's profile, then drafts a rejection or next-round email for the recruiter to review; nothing is sent
+- Caching of job lookups, candidate rankings and match explanations, in Redis or in memory, cleared when a job, candidate or embedding changes
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
@@ -149,7 +150,7 @@ Once a job and some candidates have embeddings, `GET /api/v1/jobs/{jobId}/matche
 curl 'localhost:8080/api/v1/jobs/1/matches?limit=5'
 ```
 
-`GET /api/v1/jobs/{jobId}/matches/{candidateId}/explanation` asks the chat model why a candidate fits a job. It compares the same job and candidate texts used for embeddings and returns a short `summary`, the job requirements the candidate meets (`strengths`) and those they are missing or only partly meet (`gaps`). The response also carries the candidate's `fullName` and the ranking `score`, which is `null` unless both the job and the candidate have comparable embeddings; the explanation itself does not need embeddings. A candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Each call asks the model again, so the wording can vary.
+`GET /api/v1/jobs/{jobId}/matches/{candidateId}/explanation` asks the chat model why a candidate fits a job. It compares the same job and candidate texts used for embeddings and returns a short `summary`, the job requirements the candidate meets (`strengths`) and those they are missing or only partly meet (`gaps`). The response also carries the candidate's `fullName` and the ranking `score`, which is `null` unless both the job and the candidate have comparable embeddings; the explanation itself does not need embeddings. A candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Explanations are cached (see below), so repeating the request returns the same text without asking the model again.
 
 ```bash
 curl localhost:8080/api/v1/jobs/1/matches/3/explanation
@@ -212,6 +213,8 @@ curl -X PUT localhost:8080/api/v1/users/2/role \
   -d '{"role":"RECRUITER"}'
 ```
 
+Single jobs (`GET /api/v1/jobs/{id}`), candidate rankings (per job and `limit`) and match explanations (per job and candidate) are cached. `CACHE_TYPE` picks the backend: `simple` (the default) keeps entries in memory on each instance, `redis` stores them in Redis so every instance shares them, and `none` turns caching off. Redis entries expire after `CACHE_TTL` and are stored under keys starting with `talentlens:`. Updating or deleting a job, changing a candidate (details, resume or parsed profile) or computing a new embedding clears the affected entries, so a cached result never outlives the data it was built from. `docker compose up` starts Redis and runs the application with `CACHE_TYPE=redis`; set `REDIS_HEALTH_ENABLED=true` with Redis so `/actuator/health` reports its status.
+
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
 The database schema lives in `src/main/resources/db/migration` and is applied by Flyway on startup; Hibernate only validates that the entities match it. To change the schema, add a new `V<n>__description.sql` file rather than editing an existing one. Migrations that only work on one database live in `src/main/resources/db/vendor/<database>`; the pgvector tables are created there, so PostgreSQL needs the `vector` extension available (the `pgvector/pgvector` image in `docker-compose.yml` has it). A database created before migrations were introduced is baselined at version 1 automatically.
@@ -228,7 +231,7 @@ src/main/java/com/talentlens
 ├── assistant/   Recruiter assistant: chat over the candidate pool, interview questions, shortlisting and email agents
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
-├── config/      Application configuration (OpenAPI, password hashing, JWT settings)
+├── config/      Application configuration (OpenAPI, password hashing, JWT settings, caching)
 └── common/      Error handling shared by all modules
 ```
 
@@ -248,3 +251,8 @@ src/main/java/com/talentlens
 | `JWT_EXPIRATION` | `1h` | How long an access token is valid (e.g. `30m`, `8h`) |
 | `JWT_ISSUER` | `talentlens` | Issuer written into and required on access tokens |
 | `ADMIN_EMAIL` | none | The account registered with this email becomes an `ADMIN` |
+| `CACHE_TYPE` | `simple` | Cache backend: `redis`, `simple` (in memory) or `none` |
+| `CACHE_TTL` | `10m` | How long Redis keeps a cached entry |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |
+| `REDIS_PASSWORD` | none | Redis password, if the server needs one |
+| `REDIS_HEALTH_ENABLED` | `false` | Include Redis in `/actuator/health` |
