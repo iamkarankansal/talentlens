@@ -21,6 +21,8 @@ jobs:
             host="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"
             echo "Docker endpoint: $host"
             echo "DOCKER_HOST=$host" >> "$GITHUB_ENV"
+            # Docker Engine 29+ rejects API versions below 1.44, older than docker-java's default.
+            echo "api.version=1.44" >> "$HOME/.docker-java.properties"
           else
             echo "::warning::Docker is not available; PostgreSQL integration tests will be skipped"
           fi
