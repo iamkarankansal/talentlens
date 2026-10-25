@@ -15,5 +15,14 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Point Testcontainers at the Docker daemon
+        run: |
+          if docker version; then
+            host="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"
+            echo "Docker endpoint: $host"
+            echo "DOCKER_HOST=$host" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Docker is not available; PostgreSQL integration tests will be skipped"
+          fi
       - name: Build and test
         run: mvn -B verify
