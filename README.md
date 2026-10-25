@@ -33,6 +33,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed
+- Integration tests against a real PostgreSQL with pgvector, started by Testcontainers, covering the PostgreSQL-only migrations, vector storage and ranking
 
 See [ROADMAP.md](ROADMAP.md) for what is coming next.
 
@@ -52,6 +53,8 @@ To run only the tests (no key, no database needed):
 ```bash
 mvn test
 ```
+
+The suite runs on in-memory H2. When Docker is available, `PostgresIntegrationTests` also starts a throwaway `pgvector/pgvector:pg16` container with Testcontainers and runs migrations, embedding storage, ranking and search against it; without Docker those tests are skipped. CI runs them on every push.
 
 ## API
 
