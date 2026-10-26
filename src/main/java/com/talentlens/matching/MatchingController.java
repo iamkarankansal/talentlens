@@ -1,6 +1,12 @@
 package com.talentlens.matching;
 
+import java.nio.charset.StandardCharsets;
+
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,6 +32,22 @@ public class MatchingController {
     public CandidateRankingResponse rankCandidates(@PathVariable Long jobId,
             @RequestParam(defaultValue = "10") int limit) {
         return service.rankCandidates(jobId, limit);
+    }
+
+    /**
+     * Downloads the same ranking as a CSV file, up to the maximum limit by default.
+     */
+    @GetMapping("/api/v1/jobs/{jobId}/matches/export")
+    public ResponseEntity<String> exportRanking(@PathVariable Long jobId,
+            @RequestParam(defaultValue = "" + MatchingService.MAX_LIMIT) int limit) {
+        CandidateRankingResponse ranking = service.rankCandidates(jobId, limit);
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename("job-" + jobId + "-ranked-candidates.csv")
+                .build();
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(RankingCsvWriter.write(ranking.matches()));
     }
 
     /**
