@@ -19,6 +19,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
 - Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
+- CSV export of a job's ranked candidates, ready to open in a spreadsheet
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
 - Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
@@ -76,6 +77,7 @@ The suite runs on in-memory H2. When Docker is available, `PostgresIntegrationTe
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
 | `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
+| `GET` | `/api/v1/jobs/{jobId}/matches/export` | Download the ranking as a CSV file (`limit`, default 50) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` | Compare the job's required skills with the candidate's skills |
 | `POST` | `/api/v1/assistant/chat` | Ask the recruiter assistant a question about the candidate pool (`question`, `topK`) |
@@ -151,6 +153,12 @@ Once a job and some candidates have embeddings, `GET /api/v1/jobs/{jobId}/matche
 
 ```bash
 curl 'localhost:8080/api/v1/jobs/1/matches?limit=5'
+```
+
+`GET /api/v1/jobs/{jobId}/matches/export` returns the same ranking as a `text/csv` download named `job-{jobId}-ranked-candidates.csv`, with the columns `rank`, `candidateId`, `fullName`, `headline` and `score`. `limit` works as above but defaults to the maximum of 50, and the errors are the same as for the JSON ranking. Values containing commas, quotes or line breaks are quoted, and text starting with `=`, `+`, `-` or `@` is prefixed with an apostrophe so spreadsheets do not run it as a formula.
+
+```bash
+curl -OJ localhost:8080/api/v1/jobs/1/matches/export
 ```
 
 `GET /api/v1/jobs/{jobId}/matches/{candidateId}/explanation` asks the chat model why a candidate fits a job. It compares the same job and candidate texts used for embeddings and returns a short `summary`, the job requirements the candidate meets (`strengths`) and those they are missing or only partly meet (`gaps`). The response also carries the candidate's `fullName` and the ranking `score`, which is `null` unless both the job and the candidate have comparable embeddings; the explanation itself does not need embeddings. A candidate with neither a resume nor a parsed profile returns `409`, and a model failure returns `503`. Explanations are cached (see below), so repeating the request returns the same text without asking the model again.
