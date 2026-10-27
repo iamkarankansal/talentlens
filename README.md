@@ -31,6 +31,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
 - OpenAPI 3 description of the API with a Swagger UI to try it out
+- Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed
@@ -56,6 +57,83 @@ mvn test
 ```
 
 The suite runs on in-memory H2. When Docker is available, `PostgresIntegrationTests` also starts a throwaway `pgvector/pgvector:pg16` container with Testcontainers and runs migrations, embedding storage, ranking and search against it; without Docker those tests are skipped. CI runs them on every push.
+
+## Architecture
+
+TalentLens is a single Spring Boot application with one package per feature. Each feature follows the same shape: a REST controller that validates request records, a service that holds the rules, and Spring Data repositories over PostgreSQL. Errors from every layer become JSON through one `GlobalExceptionHandler`.
+
+```
+            HTTP clients (curl, Swagger UI, a recruiter front end)
+                                   │
+       ┌───────────────────────────┴───────────────────────────┐
+       │ Controllers: jobs, candidates, applications,           │
+       │ matching, assistant, users, auth                       │
+       ├────────────────────────────────────────────────────────┤
+       │ Services: pipeline rules, ranking, skill gaps,         │──── Cache (Redis or in memory)
+       │ RAG chat, shortlist and email agents, JWT              │
+       ├──────────────────────────┬─────────────────────────────┤
+       │ JPA repositories,        │ AI ports (ResumeParser,     │
+       │ EmbeddingStore           │ MatchExplainer, agents ...) │
+       └────────────┬─────────────┴──────────────┬──────────────┘
+                    │                            │ Spring AI ChatClient / EmbeddingModel
+        PostgreSQL + pgvector                OpenAI chat and embedding models
+        (schema by Flyway)
+```
+
+- **Data.** Jobs, candidates, applications and user accounts are JPA entities. Flyway owns the schema; the pgvector tables are a PostgreSQL-only migration, with an H2 equivalent so the test suite runs in memory.
+- **AI behind interfaces.** Every model call sits behind a small interface in `ai/` or `assistant/` (`ResumeParser`, `MatchExplainer`, `SkillExtractor`, `ShortlistAgent`, ...) with an `Llm*` implementation that uses Spring AI. Model output is requested as JSON, mapped to records and checked before it is stored or returned; a model failure becomes `503`. Tests replace these beans with mocks, so they never need an API key.
+- **Matching.** The embedding model turns a job or a candidate profile into a vector stored in pgvector. Ranking, CSV export and the assistant's retrieval compare stored vectors by cosine similarity and never call the model.
+- **Agents.** The shortlist and email agents give the chat model tools (`@Tool` methods over the services) to look up rankings, profiles and applications. Their answers are checked against the database: unknown candidates are dropped and email recipients always come from the candidate record.
+- **Security.** Passwords are BCrypt hashes, logins return HS256 JWTs, and role changes are checked against the database on every request.
+- **Caching.** Job lookups, rankings and match explanations are cached and evicted whenever the data behind them changes.
+
+## End-to-end walkthrough
+
+With `docker compose up --build` running, this takes one job and one candidate from posting to a drafted email. The ids assume an empty database.
+
+```bash
+# 1. Post an open job
+curl -X POST localhost:8080/api/v1/jobs -H 'Content-Type: application/json' \
+  -d '{"title":"Backend Engineer","description":"Java 21, Spring Boot, PostgreSQL and Kafka. Owns services end to end.","location":"Bengaluru","minExperienceYears":4,"status":"OPEN"}'
+
+# 2. Add a candidate and upload their resume
+curl -X POST localhost:8080/api/v1/candidates -H 'Content-Type: application/json' \
+  -d '{"fullName":"Asha Verma","email":"asha@example.com"}'
+curl -X POST localhost:8080/api/v1/candidates/1/resume -F file=@resume.pdf
+
+# 3. Parse the resume into headline, experience and skills
+curl -X POST localhost:8080/api/v1/candidates/1/resume/parse
+
+# 4. Embed the job and the candidate, then rank candidates for the job
+curl -X POST localhost:8080/api/v1/jobs/1/embedding
+curl -X POST localhost:8080/api/v1/candidates/1/embedding
+curl localhost:8080/api/v1/jobs/1/matches
+
+# 5. Understand the match
+curl localhost:8080/api/v1/jobs/1/matches/1/explanation
+curl localhost:8080/api/v1/jobs/1/matches/1/skill-gap
+
+# 6. Ask the assistant, prepare the interview and get a shortlist
+curl -X POST localhost:8080/api/v1/assistant/chat -H 'Content-Type: application/json' \
+  -d '{"question":"Who has worked with Kafka?"}'
+curl -X POST localhost:8080/api/v1/assistant/interview-questions -H 'Content-Type: application/json' \
+  -d '{"jobId":1,"candidateId":1}'
+curl -X POST localhost:8080/api/v1/assistant/shortlist -H 'Content-Type: application/json' \
+  -d '{"jobId":1}'
+
+# 7. Move the candidate through the pipeline and draft the next email
+curl -X POST localhost:8080/api/v1/applications -H 'Content-Type: application/json' \
+  -d '{"candidateId":1,"jobId":1}'
+curl -X PUT localhost:8080/api/v1/applications/1/status -H 'Content-Type: application/json' \
+  -d '{"status":"SCREENING"}'
+curl -X POST localhost:8080/api/v1/assistant/emails -H 'Content-Type: application/json' \
+  -d '{"applicationId":1,"type":"NEXT_ROUND"}'
+
+# 8. Export the ranking for the hiring team
+curl -OJ localhost:8080/api/v1/jobs/1/matches/export
+```
+
+Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works without a key. `curl localhost:8080/actuator/info` shows the running version.
 
 ## API
 
@@ -89,6 +167,8 @@ The suite runs on in-memory H2. When Docker is available, `PostgresIntegrationTe
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
 | `POST` | `/api/v1/auth/login` | Exchange `email` and `password` for a JWT access token |
 | `GET` | `/api/v1/auth/me` | Read the user the bearer token belongs to |
+| `GET` | `/actuator/health` | Health check |
+| `GET` | `/actuator/info` | Build information, including the running version |
 
 Example:
 

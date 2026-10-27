@@ -37,4 +37,4 @@ Target: v1.0 by 31 October 2026. Items are built top to bottom, each with tests.
 - [x] Redis caching for job and match results
 - [x] Testcontainers integration tests against real PostgreSQL
 - [x] CSV export of ranked candidates
-- [ ] v1.0: architecture overview and end-to-end walkthrough in the README, version bump to 1.0.0
+- [x] v1.0: architecture overview and end-to-end walkthrough in the README, version bump to 1.0.0
