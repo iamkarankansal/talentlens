@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.talentlens</groupId>
     <artifactId>talentlens</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
     <name>talentlens</name>
     <description>AI-powered recruitment platform</description>
 
@@ -127,6 +127,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

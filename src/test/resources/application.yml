@@ -19,6 +19,10 @@ spring:
       api-key: test-key
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
   health:
     redis:
       enabled: false

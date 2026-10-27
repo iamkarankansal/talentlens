@@ -23,7 +23,7 @@ class OpenApiDocsTests {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.info.title", is("TalentLens API")))
-                .andExpect(jsonPath("$.info.version", is("v1")))
+                .andExpect(jsonPath("$.info.version", is("1.0.0")))
                 .andExpect(jsonPath("$.paths['/api/v1/jobs'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/jobs/{id}'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/candidates'].get").exists())
