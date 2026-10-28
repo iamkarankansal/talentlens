@@ -33,7 +33,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
-- Consistent JSON error responses, including per-field validation errors
+- Consistent JSON error responses, including per-field validation errors, malformed request bodies, missing upload fields and unsupported HTTP methods
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed
 - Integration tests against a real PostgreSQL with pgvector, started by Testcontainers, covering the PostgreSQL-only migrations, vector storage and ranking
 

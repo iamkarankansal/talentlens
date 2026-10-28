@@ -2,15 +2,20 @@ package com.talentlens.common;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -45,6 +50,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         return build(HttpStatus.BAD_REQUEST, "Invalid value for parameter " + ex.getName());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return build(HttpStatus.BAD_REQUEST, "The request body is missing or is not valid JSON for this endpoint");
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiError> handleMissingPart(MissingServletRequestPartException ex) {
+        return build(HttpStatus.BAD_REQUEST, "Missing multipart field " + ex.getRequestPartName());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        HttpHeaders headers = new HttpHeaders();
+        Set<HttpMethod> supported = ex.getSupportedHttpMethods();
+        if (supported != null && !supported.isEmpty()) {
+            headers.setAllow(supported);
+        }
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .headers(headers)
+                .body(ApiError.of(HttpStatus.METHOD_NOT_ALLOWED.value(), "Method " + ex.getMethod() + " is not supported here"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
