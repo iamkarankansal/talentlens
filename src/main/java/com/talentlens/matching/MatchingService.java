@@ -2,6 +2,7 @@ package com.talentlens.matching;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,18 +62,33 @@ public class MatchingService {
         }
         scored.sort(Comparator.comparingDouble(Scored::score).reversed().thenComparing(Scored::candidateId));
 
+        return new CandidateRankingResponse(jobId, scored.size(), topMatches(scored, limit));
+    }
+
+    /**
+     * Loads the best-scoring candidates in batches rather than one query per match. A candidate deleted
+     * since its vector was read is skipped and the next best one takes its place.
+     */
+    private List<CandidateMatchResponse> topMatches(List<Scored> scored, int limit) {
         List<CandidateMatchResponse> matches = new ArrayList<>();
-        for (Scored match : scored) {
-            if (matches.size() == limit) {
-                break;
+        int next = 0;
+        while (matches.size() < limit && next < scored.size()) {
+            List<Scored> batch = scored.subList(next, Math.min(scored.size(), next + limit - matches.size()));
+            next += batch.size();
+            List<Long> ids = batch.stream().map(Scored::candidateId).toList();
+            Map<Long, Candidate> candidates = new HashMap<>();
+            for (Candidate candidate : candidateRepository.findAllById(ids)) {
+                candidates.put(candidate.getId(), candidate);
             }
-            Candidate candidate = candidateRepository.findById(match.candidateId()).orElse(null);
-            if (candidate != null) {
-                matches.add(new CandidateMatchResponse(matches.size() + 1, candidate.getId(),
-                        candidate.getFullName(), candidate.getHeadline(), round(match.score())));
+            for (Scored match : batch) {
+                Candidate candidate = candidates.get(match.candidateId());
+                if (candidate != null) {
+                    matches.add(new CandidateMatchResponse(matches.size() + 1, candidate.getId(),
+                            candidate.getFullName(), candidate.getHeadline(), round(match.score())));
+                }
             }
         }
-        return new CandidateRankingResponse(jobId, scored.size(), matches);
+        return matches;
     }
 
     @Cacheable(cacheNames = CacheConfig.MATCH_EXPLANATIONS, key = "#jobId + ':' + #candidateId")

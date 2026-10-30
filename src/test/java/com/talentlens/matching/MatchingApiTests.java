@@ -102,6 +102,28 @@ class MatchingApiTests {
     }
 
     @Test
+    void breaksTiesByCandidateIdAndKeepsScoreOrderAcrossTheLimit() throws Exception {
+        Long jobId = job(new float[] {1f, 0f});
+        Long weaker = candidate("Weaker", "weaker@example.com", new float[] {1f, 1f});
+        Long firstTie = candidate("First Tie", "tie1@example.com", new float[] {3f, 0f});
+        Long secondTie = candidate("Second Tie", "tie2@example.com", new float[] {1f, 0f});
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches").param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidatesConsidered", is(3)))
+                .andExpect(jsonPath("$.matches", hasSize(2)))
+                .andExpect(jsonPath("$.matches[0].candidateId", is(firstTie.intValue())))
+                .andExpect(jsonPath("$.matches[0].rank", is(1)))
+                .andExpect(jsonPath("$.matches[1].candidateId", is(secondTie.intValue())))
+                .andExpect(jsonPath("$.matches[1].rank", is(2)));
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches").param("limit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matches[2].candidateId", is(weaker.intValue())))
+                .andExpect(jsonPath("$.matches[2].rank", is(3)));
+    }
+
+    @Test
     void rejectsAJobWithoutAnEmbedding() throws Exception {
         Long jobId = job(null);
 
