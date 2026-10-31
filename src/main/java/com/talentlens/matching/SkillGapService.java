@@ -18,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Compares the skills a job requires, extracted by the language model, with the skills stored on the
- * candidate's parsed profile. The comparison itself is deterministic and ignores case, spacing and hyphens.
+ * candidate's parsed profile. The comparison itself is deterministic and ignores case, spaces, hyphens,
+ * underscores and dots, so {@code Spring Boot} matches {@code SpringBoot} and {@code Node.js} matches
+ * {@code NodeJS}. Symbols such as {@code +} and {@code #} are kept, so {@code C++} and {@code C#} stay distinct.
  */
 @Service
 @Transactional(readOnly = true)
@@ -69,7 +71,8 @@ public class SkillGapService {
     }
 
     /**
-     * Skills keyed by their normalised name, keeping the first spelling seen and dropping blanks.
+     * Skills keyed by their normalised name, keeping the first spelling seen and dropping blanks
+     * and values made only of separators.
      */
     private static Map<String, String> byKey(List<String> skills) {
         Map<String, String> result = new LinkedHashMap<>();
@@ -77,15 +80,18 @@ public class SkillGapService {
             return result;
         }
         for (String skill : skills) {
-            if (skill == null || skill.isBlank()) {
+            if (skill == null) {
                 continue;
             }
-            result.putIfAbsent(normalise(skill), skill.trim());
+            String key = normalise(skill);
+            if (!key.isEmpty()) {
+                result.putIfAbsent(key, skill.trim());
+            }
         }
         return result;
     }
 
     static String normalise(String skill) {
-        return skill.trim().toLowerCase(Locale.ROOT).replaceAll("[\\s\\-_]+", " ");
+        return skill.toLowerCase(Locale.ROOT).replaceAll("[\\s\\-_.]+", "");
     }
 }

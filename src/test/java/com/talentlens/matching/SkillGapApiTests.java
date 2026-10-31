@@ -78,6 +78,20 @@ class SkillGapApiTests {
     }
 
     @Test
+    void matchesSkillsWrittenWithoutSpacesOrDots() throws Exception {
+        Long jobId = job(null);
+        Long candidateId = candidate("Farah Khan", "farah@example.com", 3.0, List.of("NodeJS", "SpringBoot"));
+        when(skillExtractor.requiredSkills(anyString())).thenReturn(List.of("Node.js", "Spring Boot", "-", "C++"));
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches/" + candidateId + "/skill-gap"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requiredSkills", contains("Node.js", "Spring Boot", "C++")))
+                .andExpect(jsonPath("$.matchedSkills", contains("Node.js", "Spring Boot")))
+                .andExpect(jsonPath("$.missingSkills", contains("C++")))
+                .andExpect(jsonPath("$.additionalSkills", empty()));
+    }
+
+    @Test
     void leavesCoverageAndExperienceEmptyWhenUnknown() throws Exception {
         Long jobId = job(null);
         Long candidateId = candidate("Ben Lee", "ben@example.com", null, List.of("Python"));
