@@ -56,6 +56,11 @@ public class JobController {
         return service.update(id, request);
     }
 
+    @PutMapping("/{id}/status")
+    public JobResponse changeStatus(@PathVariable Long id, @Valid @RequestBody JobStatusRequest request) {
+        return service.changeStatus(id, request.status());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

@@ -3,6 +3,7 @@ package com.talentlens.job;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.talentlens.common.ConflictException;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
@@ -29,6 +30,9 @@ public class JobService {
     public JobResponse create(JobRequest request) {
         Job job = new Job();
         apply(job, request);
+        if (request.status() != null) {
+            job.setStatus(request.status());
+        }
         return JobResponse.from(repository.save(job));
     }
 
@@ -51,6 +55,19 @@ public class JobService {
     public JobResponse update(Long id, JobRequest request) {
         Job job = getOrThrow(id);
         apply(job, request);
+        if (request.status() != null && request.status() != job.getStatus()) {
+            moveTo(job, request.status());
+        }
+        return JobResponse.from(job);
+    }
+
+    @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id")
+    public JobResponse changeStatus(Long id, JobStatus next) {
+        Job job = getOrThrow(id);
+        if (job.getStatus() == next) {
+            return JobResponse.from(job);
+        }
+        moveTo(job, next);
         return JobResponse.from(job);
     }
 
@@ -86,8 +103,13 @@ public class JobService {
         job.setDescription(request.description().trim());
         job.setLocation(request.location());
         job.setMinExperienceYears(request.minExperienceYears());
-        if (request.status() != null) {
-            job.setStatus(request.status());
+    }
+
+    private void moveTo(Job job, JobStatus next) {
+        JobStatus current = job.getStatus();
+        if (!current.canMoveTo(next)) {
+            throw new ConflictException("Cannot move job " + job.getId() + " from " + current + " to " + next);
         }
+        job.setStatus(next);
     }
 }
