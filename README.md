@@ -9,6 +9,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 ## What works today
 
 - Jobs API: create, list, read, update, delete
+- Job lifecycle: drafts are published, open jobs closed and closed jobs reopened, with any other move rejected
 - Paginated, sortable job and candidate lists
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
@@ -142,6 +143,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `POST` | `/api/v1/jobs` | Create a job |
 | `GET` | `/api/v1/jobs` | List jobs (paginated; filter with `status`, `location`) |
 | `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or delete a job |
+| `PUT` | `/api/v1/jobs/{id}/status` | Move a job through its lifecycle (`status`) |
 | `POST` | `/api/v1/candidates` | Create a candidate |
 | `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`) |
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
@@ -199,6 +201,14 @@ The job list can be narrowed with `status` (`DRAFT`, `OPEN` or `CLOSED`) and `lo
 ```bash
 curl 'localhost:8080/api/v1/jobs?status=OPEN&location=bengaluru'
 curl 'localhost:8080/api/v1/candidates?q=verma'
+```
+
+A job is a `DRAFT` while it is being written, `OPEN` while it takes applications and `CLOSED` when hiring stops. `PUT /api/v1/jobs/{id}/status` publishes a draft (`DRAFT` → `OPEN`), closes an open job (`OPEN` → `CLOSED`) or reopens a closed one (`CLOSED` → `OPEN`). A job never returns to `DRAFT`, and a draft cannot be closed without being published; those moves return `409`, as does a full update (`PUT /api/v1/jobs/{id}`) whose `status` breaks the same rules. Asking for the status a job already has changes nothing. A new job can start in any status and defaults to `OPEN`.
+
+```bash
+curl -X PUT localhost:8080/api/v1/jobs/1/status \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"CLOSED"}'
 ```
 
 An application links a candidate to a job and tracks where they are in the hiring pipeline: `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER` and `HIRED`, or `REJECTED` / `WITHDRAWN` when it ends early. Only `OPEN` jobs accept applications, and a candidate can apply to a job once; both cases otherwise return `409`. Deleting a candidate or a job also deletes their applications.
