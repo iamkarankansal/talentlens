@@ -34,6 +34,8 @@ public class Job {
     @Column(nullable = false)
     private JobStatus status = JobStatus.OPEN;
 
+    private Instant closesAt;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -53,5 +55,12 @@ public class Job {
     public void setMinExperienceYears(Integer minExperienceYears) { this.minExperienceYears = minExperienceYears; }
     public JobStatus getStatus() { return status; }
     public void setStatus(JobStatus status) { this.status = status; }
+    public Instant getClosesAt() { return closesAt; }
+    public void setClosesAt(Instant closesAt) { this.closesAt = closesAt; }
     public Instant getCreatedAt() { return createdAt; }
+
+    /** Whether the application deadline, if the job has one, has been reached at the given moment. */
+    public boolean isPastDeadline(Instant now) {
+        return closesAt != null && !now.isBefore(closesAt);
+    }
 }

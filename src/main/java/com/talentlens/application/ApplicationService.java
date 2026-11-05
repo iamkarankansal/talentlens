@@ -1,5 +1,7 @@
 package com.talentlens.application;
 
+import java.time.Instant;
+
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
 import com.talentlens.common.ConflictException;
@@ -33,6 +35,9 @@ public class ApplicationService {
         Job job = jobService.getOrThrow(request.jobId());
         if (job.getStatus() != JobStatus.OPEN) {
             throw new ConflictException("Job " + job.getId() + " is not open for applications");
+        }
+        if (job.isPastDeadline(Instant.now())) {
+            throw new ConflictException("Job " + job.getId() + " stopped taking applications at " + job.getClosesAt());
         }
         if (repository.existsByCandidateIdAndJobId(candidate.getId(), job.getId())) {
             throw new ConflictException("Candidate " + candidate.getId() + " has already applied to job " + job.getId());

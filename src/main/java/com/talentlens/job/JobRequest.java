@@ -1,5 +1,7 @@
 package com.talentlens.job;
 
+import java.time.Instant;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -9,5 +11,6 @@ public record JobRequest(
         @NotBlank(message = "description is required") @Size(max = 10000) String description,
         @Size(max = 255) String location,
         @Min(value = 0, message = "minExperienceYears cannot be negative") Integer minExperienceYears,
-        JobStatus status) {
+        JobStatus status,
+        Instant closesAt) {
 }

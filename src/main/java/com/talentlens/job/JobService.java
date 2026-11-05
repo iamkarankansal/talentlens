@@ -103,6 +103,7 @@ public class JobService {
         job.setDescription(request.description().trim());
         job.setLocation(request.location());
         job.setMinExperienceYears(request.minExperienceYears());
+        job.setClosesAt(request.closesAt());
     }
 
     private void moveTo(Job job, JobStatus next) {
