@@ -10,6 +10,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 
 - Jobs API: create, list, read, update, delete
 - Job lifecycle: drafts are published, open jobs closed and closed jobs reopened, with any other move rejected
+- Optional application deadline (`closesAt`) on jobs, after which applications are refused
 - Paginated, sortable job and candidate lists
 - Job filters by status and location, and candidate search by name or email
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
@@ -211,7 +212,9 @@ curl -X PUT localhost:8080/api/v1/jobs/1/status \
   -d '{"status":"CLOSED"}'
 ```
 
-An application links a candidate to a job and tracks where they are in the hiring pipeline: `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER` and `HIRED`, or `REJECTED` / `WITHDRAWN` when it ends early. Only `OPEN` jobs accept applications, and a candidate can apply to a job once; both cases otherwise return `409`. Deleting a candidate or a job also deletes their applications.
+A job can also carry an optional application deadline, `closesAt`, as an ISO-8601 instant (for example `2026-12-31T18:30:00Z`). From that moment on, new applications to the job return `409` even while it is `OPEN`; existing applications are unaffected. The deadline is set on create or full update (`PUT /api/v1/jobs/{id}`), and a full update without it clears it.
+
+An application links a candidate to a job and tracks where they are in the hiring pipeline: `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER` and `HIRED`, or `REJECTED` / `WITHDRAWN` when it ends early. Only `OPEN` jobs whose deadline has not passed accept applications, and a candidate can apply to a job once; both cases otherwise return `409`. Deleting a candidate or a job also deletes their applications.
 
 ```bash
 curl -X POST localhost:8080/api/v1/applications \
