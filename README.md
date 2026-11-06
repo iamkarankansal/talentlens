@@ -16,6 +16,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
 - Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
+- Application status history: every stage an application enters is recorded with its time
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
@@ -153,6 +154,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `POST` | `/api/v1/applications` | Apply a candidate to a job (`candidateId`, `jobId`) |
 | `GET` `DELETE` | `/api/v1/applications/{id}` | Read or delete an application |
 | `PUT` | `/api/v1/applications/{id}/status` | Move an application to another stage (`status`) |
+| `GET` | `/api/v1/applications/{id}/history` | List the application's stage changes, oldest first |
 | `GET` | `/api/v1/jobs/{jobId}/applications` | List a job's applications (paginated; filter with `status`) |
 | `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
@@ -231,6 +233,12 @@ curl -X PUT localhost:8080/api/v1/applications/1/status \
 
 curl 'localhost:8080/api/v1/jobs/1/applications?status=SCREENING'
 curl 'localhost:8080/api/v1/candidates/1/applications'
+```
+
+Every stage change is recorded. `GET /api/v1/applications/{id}/history` lists them oldest first, each with `fromStatus`, `toStatus` and `changedAt`; the first entry has no `fromStatus` and records the application entering the pipeline as `APPLIED`. Rejected moves are not recorded, and deleting an application deletes its history. Applications created before history was added start their history at their next change.
+
+```bash
+curl localhost:8080/api/v1/applications/1/history
 ```
 
 Application lists take the same `page`, `size` and `sort` parameters as the other lists and sort by `id`, `status`, `createdAt` or `updatedAt`.
