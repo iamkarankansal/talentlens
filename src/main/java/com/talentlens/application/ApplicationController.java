@@ -1,6 +1,7 @@
 package com.talentlens.application;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 
 import com.talentlens.common.PageQuery;
@@ -43,6 +44,11 @@ public class ApplicationController {
     @PutMapping("/api/v1/applications/{id}/status")
     public ApplicationResponse changeStatus(@PathVariable Long id, @Valid @RequestBody ApplicationStatusRequest request) {
         return service.changeStatus(id, request.status());
+    }
+
+    @GetMapping("/api/v1/applications/{id}/history")
+    public List<ApplicationStatusChangeResponse> history(@PathVariable Long id) {
+        return service.history(id);
     }
 
     @DeleteMapping("/api/v1/applications/{id}")

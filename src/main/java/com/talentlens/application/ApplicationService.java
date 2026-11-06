@@ -1,6 +1,7 @@
 package com.talentlens.application;
 
 import java.time.Instant;
+import java.util.List;
 
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
@@ -20,12 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApplicationService {
 
     private final ApplicationRepository repository;
+    private final ApplicationStatusChangeRepository statusChanges;
     private final CandidateService candidateService;
     private final JobService jobService;
 
-    public ApplicationService(ApplicationRepository repository, CandidateService candidateService,
-                              JobService jobService) {
+    public ApplicationService(ApplicationRepository repository, ApplicationStatusChangeRepository statusChanges,
+                              CandidateService candidateService, JobService jobService) {
         this.repository = repository;
+        this.statusChanges = statusChanges;
         this.candidateService = candidateService;
         this.jobService = jobService;
     }
@@ -42,7 +45,9 @@ public class ApplicationService {
         if (repository.existsByCandidateIdAndJobId(candidate.getId(), job.getId())) {
             throw new ConflictException("Candidate " + candidate.getId() + " has already applied to job " + job.getId());
         }
-        return ApplicationResponse.from(repository.save(new Application(candidate, job)));
+        Application saved = repository.save(new Application(candidate, job));
+        statusChanges.save(new ApplicationStatusChange(saved.getId(), null, saved.getStatus()));
+        return ApplicationResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -57,8 +62,17 @@ public class ApplicationService {
             throw new ConflictException("Cannot move application " + id + " from " + current + " to " + next);
         }
         application.setStatus(next);
+        statusChanges.save(new ApplicationStatusChange(id, current, next));
         repository.flush();
         return ApplicationResponse.from(application);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApplicationStatusChangeResponse> history(Long id) {
+        getOrThrow(id);
+        return statusChanges.findByApplicationIdOrderByIdAsc(id).stream()
+                .map(ApplicationStatusChangeResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

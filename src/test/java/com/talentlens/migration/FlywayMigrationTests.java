@@ -24,7 +24,7 @@ class FlywayMigrationTests {
 
         assertThat(info.applied()).isNotEmpty();
         assertThat(info.pending()).isEmpty();
-        assertThat(info.current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(info.current().getVersion().getVersion()).isEqualTo("8");
     }
 
     @Test
@@ -36,5 +36,7 @@ class FlywayMigrationTests {
         assertThat(jdbcTemplate.queryForObject("select count(*) from job_embeddings", Integer.class)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("select count(*) from candidate_embeddings", Integer.class)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("select count(*) from user_accounts", Integer.class)).isNotNull();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from application_status_changes", Integer.class))
+                .isNotNull();
     }
 }
