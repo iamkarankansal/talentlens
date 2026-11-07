@@ -17,6 +17,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
 - Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
 - Application status history: every stage an application enters is recorded with its time
+- Recruiter notes on applications, listed oldest first
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
@@ -155,6 +156,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `GET` `DELETE` | `/api/v1/applications/{id}` | Read or delete an application |
 | `PUT` | `/api/v1/applications/{id}/status` | Move an application to another stage (`status`) |
 | `GET` | `/api/v1/applications/{id}/history` | List the application's stage changes, oldest first |
+| `POST` `GET` | `/api/v1/applications/{id}/notes` | Add a recruiter note (`body`, optional `author`) or list the notes, oldest first |
 | `GET` | `/api/v1/jobs/{jobId}/applications` | List a job's applications (paginated; filter with `status`) |
 | `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
@@ -239,6 +241,15 @@ Every stage change is recorded. `GET /api/v1/applications/{id}/history` lists th
 
 ```bash
 curl localhost:8080/api/v1/applications/1/history
+```
+
+Recruiters can leave notes on an application. `POST /api/v1/applications/{id}/notes` takes a `body` (required, up to 2000 characters) and an optional `author` (up to 100 characters), trims both and returns the note with its `id` and `createdAt`. `GET` on the same path lists the notes oldest first. Notes cannot be edited, and deleting an application deletes its notes.
+
+```bash
+curl -X POST localhost:8080/api/v1/applications/1/notes \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"Strong Kafka background, ask about on-call","author":"Priya"}'
+curl localhost:8080/api/v1/applications/1/notes
 ```
 
 Application lists take the same `page`, `size` and `sort` parameters as the other lists and sort by `id`, `status`, `createdAt` or `updatedAt`.
