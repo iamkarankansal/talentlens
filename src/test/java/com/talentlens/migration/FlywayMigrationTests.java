@@ -24,7 +24,7 @@ class FlywayMigrationTests {
 
         assertThat(info.applied()).isNotEmpty();
         assertThat(info.pending()).isEmpty();
-        assertThat(info.current().getVersion().getVersion()).isEqualTo("8");
+        assertThat(info.current().getVersion().getVersion()).isEqualTo("9");
     }
 
     @Test
