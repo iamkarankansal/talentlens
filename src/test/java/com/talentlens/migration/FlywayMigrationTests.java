@@ -38,5 +38,6 @@ class FlywayMigrationTests {
         assertThat(jdbcTemplate.queryForObject("select count(*) from user_accounts", Integer.class)).isNotNull();
         assertThat(jdbcTemplate.queryForObject("select count(*) from application_status_changes", Integer.class))
                 .isNotNull();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from application_notes", Integer.class)).isNotNull();
     }
 }

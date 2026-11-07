@@ -51,6 +51,18 @@ public class ApplicationController {
         return service.history(id);
     }
 
+    @PostMapping("/api/v1/applications/{id}/notes")
+    public ResponseEntity<ApplicationNoteResponse> addNote(@PathVariable Long id,
+            @Valid @RequestBody ApplicationNoteRequest request) {
+        ApplicationNoteResponse created = service.addNote(id, request);
+        return ResponseEntity.created(URI.create("/api/v1/applications/" + id + "/notes")).body(created);
+    }
+
+    @GetMapping("/api/v1/applications/{id}/notes")
+    public List<ApplicationNoteResponse> notes(@PathVariable Long id) {
+        return service.listNotes(id);
+    }
+
     @DeleteMapping("/api/v1/applications/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

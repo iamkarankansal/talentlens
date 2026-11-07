@@ -22,13 +22,16 @@ public class ApplicationService {
 
     private final ApplicationRepository repository;
     private final ApplicationStatusChangeRepository statusChanges;
+    private final ApplicationNoteRepository notes;
     private final CandidateService candidateService;
     private final JobService jobService;
 
     public ApplicationService(ApplicationRepository repository, ApplicationStatusChangeRepository statusChanges,
-                              CandidateService candidateService, JobService jobService) {
+                              ApplicationNoteRepository notes, CandidateService candidateService,
+                              JobService jobService) {
         this.repository = repository;
         this.statusChanges = statusChanges;
+        this.notes = notes;
         this.candidateService = candidateService;
         this.jobService = jobService;
     }
@@ -72,6 +75,21 @@ public class ApplicationService {
         getOrThrow(id);
         return statusChanges.findByApplicationIdOrderByIdAsc(id).stream()
                 .map(ApplicationStatusChangeResponse::from)
+                .toList();
+    }
+
+    public ApplicationNoteResponse addNote(Long id, ApplicationNoteRequest request) {
+        getOrThrow(id);
+        String author = request.author() == null || request.author().isBlank() ? null : request.author().strip();
+        ApplicationNote saved = notes.save(new ApplicationNote(id, author, request.body().strip()));
+        return ApplicationNoteResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApplicationNoteResponse> listNotes(Long id) {
+        getOrThrow(id);
+        return notes.findByApplicationIdOrderByIdAsc(id).stream()
+                .map(ApplicationNoteResponse::from)
                 .toList();
     }
 
