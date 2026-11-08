@@ -1,7 +1,9 @@
 package com.talentlens.application;
 
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
@@ -100,6 +102,22 @@ public class ApplicationService {
                 ? repository.findByJobId(jobId, pageable)
                 : repository.findByJobIdAndStatus(jobId, status, pageable);
         return PageResponse.from(page, ApplicationResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicationPipelineResponse pipeline(Long jobId) {
+        Job job = jobService.getOrThrow(jobId);
+        Map<ApplicationStatus, Long> stages = new EnumMap<>(ApplicationStatus.class);
+        for (ApplicationStatus status : ApplicationStatus.values()) {
+            stages.put(status, 0L);
+        }
+        long total = 0;
+        for (Object[] row : repository.countByStatusForJob(jobId)) {
+            long count = ((Number) row[1]).longValue();
+            stages.put((ApplicationStatus) row[0], count);
+            total += count;
+        }
+        return new ApplicationPipelineResponse(job.getId(), job.getTitle(), total, stages);
     }
 
     @Transactional(readOnly = true)

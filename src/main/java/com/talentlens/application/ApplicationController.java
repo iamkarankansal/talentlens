@@ -78,6 +78,11 @@ public class ApplicationController {
         return service.findByJob(jobId, status, PageQuery.of(page, size, sort, SORTABLE_FIELDS));
     }
 
+    @GetMapping("/api/v1/jobs/{jobId}/pipeline")
+    public ApplicationPipelineResponse pipeline(@PathVariable Long jobId) {
+        return service.pipeline(jobId);
+    }
+
     @GetMapping("/api/v1/candidates/{candidateId}/applications")
     public PageResponse<ApplicationResponse> findByCandidate(@PathVariable Long candidateId,
             @RequestParam(defaultValue = "0") int page,
