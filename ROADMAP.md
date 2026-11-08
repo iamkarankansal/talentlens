@@ -48,7 +48,7 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 - [x] Application deadline: an optional `closesAt` on jobs, after which applications return `409`
 - [x] Application status history: every stage change recorded with its time, listed at `GET /api/v1/applications/{id}/history`
 - [x] Recruiter notes on applications: add and list notes
-- [ ] Pipeline summary: the number of applications in each stage for a job at `GET /api/v1/jobs/{jobId}/pipeline`
+- [x] Pipeline summary: the number of applications in each stage for a job at `GET /api/v1/jobs/{jobId}/pipeline`
 - [ ] Candidate list filters by skill and minimum years of experience
 - [ ] Soft delete for jobs: deleted jobs disappear from lists and reads but keep their applications, and can be restored
 - [ ] Candidate validation gaps: phone number format, trimmed lower-case emails and length limits

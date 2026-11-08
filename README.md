@@ -18,6 +18,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
 - Application status history: every stage an application enters is recorded with its time
 - Recruiter notes on applications, listed oldest first
+- Pipeline summary: how many of a job's applications sit in each stage
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
@@ -158,6 +159,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `GET` | `/api/v1/applications/{id}/history` | List the application's stage changes, oldest first |
 | `POST` `GET` | `/api/v1/applications/{id}/notes` | Add a recruiter note (`body`, optional `author`) or list the notes, oldest first |
 | `GET` | `/api/v1/jobs/{jobId}/applications` | List a job's applications (paginated; filter with `status`) |
+| `GET` | `/api/v1/jobs/{jobId}/pipeline` | Count the job's applications in each stage |
 | `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
 | `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
@@ -250,6 +252,13 @@ curl -X POST localhost:8080/api/v1/applications/1/notes \
   -H 'Content-Type: application/json' \
   -d '{"body":"Strong Kafka background, ask about on-call","author":"Priya"}'
 curl localhost:8080/api/v1/applications/1/notes
+```
+
+`GET /api/v1/jobs/{jobId}/pipeline` summarises a job's pipeline: the `total` number of applications and, under `stages`, the count in every stage in pipeline order, with `0` for empty stages. An unknown job returns `404`.
+
+```bash
+curl localhost:8080/api/v1/jobs/1/pipeline
+# {"jobId":1,"jobTitle":"Backend Engineer","total":3,"stages":{"APPLIED":1,"SCREENING":2,"INTERVIEW":0,...}}
 ```
 
 Application lists take the same `page`, `size` and `sort` parameters as the other lists and sort by `id`, `status`, `createdAt` or `updatedAt`.
