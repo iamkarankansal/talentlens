@@ -13,6 +13,9 @@ import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
 import com.talentlens.common.ResourceNotFoundException;
 import com.talentlens.config.CacheConfig;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -43,9 +46,21 @@ public class CandidateService {
         return CandidateResponse.from(repository.save(candidate));
     }
 
+    /**
+     * Lists candidates matching the search text, holding every given skill (ignoring case) and
+     * with at least the given parsed years of experience. Blank skills and a null minimum are ignored.
+     */
     @Transactional(readOnly = true)
-    public PageResponse<CandidateResponse> findAll(String search, Pageable pageable) {
-        return PageResponse.from(repository.findAll(matching(search), pageable), CandidateResponse::from);
+    public PageResponse<CandidateResponse> findAll(String search, List<String> skills, Double minExperience,
+                                                   Pageable pageable) {
+        if (minExperience != null && (minExperience.isNaN() || minExperience.isInfinite() || minExperience < 0)) {
+            throw new BadRequestException("minExperience must be 0 or greater");
+        }
+        Specification<Candidate> spec = matching(search).and(withExperience(minExperience));
+        for (String skill : normalizedSkills(skills)) {
+            spec = spec.and(withSkill(skill));
+        }
+        return PageResponse.from(repository.findAll(spec, pageable), CandidateResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +125,36 @@ public class CandidateService {
                     cb.like(cb.lower(root.get("fullName")), pattern, LikePattern.ESCAPE),
                     cb.like(cb.lower(root.get("email")), pattern, LikePattern.ESCAPE));
         };
+    }
+
+    private static Specification<Candidate> withExperience(Double minExperience) {
+        return (root, query, cb) -> minExperience == null
+                ? cb.conjunction()
+                : cb.greaterThanOrEqualTo(root.<Double>get("experienceYears"), minExperience);
+    }
+
+    private static Specification<Candidate> withSkill(String skill) {
+        return (root, query, cb) -> {
+            Subquery<Long> owners = query.subquery(Long.class);
+            Root<Candidate> candidate = owners.from(Candidate.class);
+            Join<Candidate, String> skills = candidate.join("skills");
+            owners.select(candidate.<Long>get("id"))
+                    .where(cb.equal(candidate.get("id"), root.get("id")),
+                            cb.equal(cb.lower(skills), skill));
+            return cb.exists(owners);
+        };
+    }
+
+    private static Set<String> normalizedSkills(List<String> skills) {
+        Set<String> result = new LinkedHashSet<>();
+        if (skills != null) {
+            for (String skill : skills) {
+                if (skill != null && !skill.isBlank()) {
+                    result.add(skill.trim().toLowerCase());
+                }
+            }
+        }
+        return result;
     }
 
     private void apply(Candidate candidate, CandidateRequest request, String email) {

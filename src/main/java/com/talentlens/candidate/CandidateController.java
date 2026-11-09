@@ -2,6 +2,7 @@ package com.talentlens.candidate;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 
 import com.talentlens.common.BadRequestException;
@@ -46,10 +47,12 @@ public class CandidateController {
 
     @GetMapping
     public PageResponse<CandidateResponse> findAll(@RequestParam(required = false) String q,
+            @RequestParam(required = false) List<String> skill,
+            @RequestParam(required = false) Double minExperience,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort) {
-        return service.findAll(q, PageQuery.of(page, size, sort, SORTABLE_FIELDS));
+        return service.findAll(q, skill, minExperience, PageQuery.of(page, size, sort, SORTABLE_FIELDS));
     }
 
     @GetMapping("/{id}")
