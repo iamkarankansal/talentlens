@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.talentlens.ai.ResumeParser;
@@ -193,6 +194,61 @@ class CandidateApiTests {
         mockMvc.perform(get("/api/v1/candidates").param("q", " "))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(3)));
+    }
+
+    @Test
+    void filtersCandidatesBySkillIgnoringCase() throws Exception {
+        saveWithProfile("Asha Verma", "asha@example.com", 6.0, List.of("Java", "Kafka"));
+        saveWithProfile("Rohan Mehta", "rohan@example.com", 3.0, List.of("java", "React"));
+        saveWithProfile("Meera Nair", "meera@example.com", 9.0, List.of("Go"));
+        save("Dev Shah", "dev@example.com", null);
+
+        mockMvc.perform(get("/api/v1/candidates").param("skill", " JAVA ").param("sort", "fullName,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Asha Verma", "Rohan Mehta")))
+                .andExpect(jsonPath("$.totalElements", is(2)));
+
+        mockMvc.perform(get("/api/v1/candidates").param("skill", "java").param("skill", "kafka"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Asha Verma")));
+
+        mockMvc.perform(get("/api/v1/candidates").param("skill", "Rust"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(0)));
+    }
+
+    @Test
+    void filtersCandidatesByMinimumExperienceAndCombinesFilters() throws Exception {
+        saveWithProfile("Asha Verma", "asha@example.com", 6.0, List.of("Java", "Kafka"));
+        saveWithProfile("Rohan Mehta", "rohan@example.com", 3.0, List.of("Java"));
+        saveWithProfile("Meera Nair", "meera@example.com", 9.0, List.of("Go"));
+        save("Dev Shah", "dev@example.com", null);
+
+        mockMvc.perform(get("/api/v1/candidates").param("minExperience", "6").param("sort", "fullName,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Asha Verma", "Meera Nair")));
+
+        mockMvc.perform(get("/api/v1/candidates").param("minExperience", "2.5").param("skill", "java")
+                        .param("q", "rohan"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].fullName", contains("Rohan Mehta")));
+    }
+
+    @Test
+    void rejectsInvalidMinimumExperience() throws Exception {
+        mockMvc.perform(get("/api/v1/candidates").param("minExperience", "-1"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/candidates").param("minExperience", "many"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private void saveWithProfile(String name, String email, Double years, List<String> skills) {
+        Candidate candidate = new Candidate();
+        candidate.setFullName(name);
+        candidate.setEmail(email);
+        candidate.setResumeText("Resume of " + name);
+        candidate.setProfile("Engineer", years, skills, Instant.now());
+        repository.save(candidate);
     }
 
     private Long save(String name, String email, String resume) {
