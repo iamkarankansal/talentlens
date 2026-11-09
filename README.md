@@ -13,6 +13,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Optional application deadline (`closesAt`) on jobs, after which applications are refused
 - Paginated, sortable job and candidate lists
 - Job filters by status and location, and candidate search by name or email
+- Candidate filters by parsed skill and minimum years of experience
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
 - Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
 - Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
@@ -149,7 +150,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or delete a job |
 | `PUT` | `/api/v1/jobs/{id}/status` | Move a job through its lifecycle (`status`) |
 | `POST` | `/api/v1/candidates` | Create a candidate |
-| `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`) |
+| `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`, filter with `skill`, `minExperience`) |
 | `GET` `PUT` `DELETE` | `/api/v1/candidates/{id}` | Read, update or delete a candidate |
 | `POST` | `/api/v1/candidates/{id}/resume` | Upload a PDF resume (multipart field `file`) and store its text |
 | `POST` | `/api/v1/candidates/{id}/resume/parse` | Extract a structured profile from the candidate's resume and store it on the candidate |
@@ -203,11 +204,12 @@ List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`f
 curl 'localhost:8080/api/v1/jobs?page=0&size=10&sort=title,asc'
 ```
 
-The job list can be narrowed with `status` (`DRAFT`, `OPEN` or `CLOSED`) and `location` (case-insensitive, matches any part of the location). The candidate list takes `q`, which matches any part of the name or email, ignoring case. Filters combine with paging and sorting.
+The job list can be narrowed with `status` (`DRAFT`, `OPEN` or `CLOSED`) and `location` (case-insensitive, matches any part of the location). The candidate list takes `q`, which matches any part of the name or email, ignoring case. It can also be filtered on the parsed resume profile: `skill` keeps candidates with that skill (whole skill, ignoring case and surrounding spaces) and can be repeated, or comma-separated, to require every listed skill; `minExperience` keeps candidates with at least that many years of experience (a decimal, 0 or greater, otherwise `400`). Candidates whose resume has not been parsed have no skills or experience, so they drop out when either filter is used. Filters combine with each other and with paging and sorting.
 
 ```bash
 curl 'localhost:8080/api/v1/jobs?status=OPEN&location=bengaluru'
 curl 'localhost:8080/api/v1/candidates?q=verma'
+curl 'localhost:8080/api/v1/candidates?skill=java&skill=kafka&minExperience=4'
 ```
 
 A job is a `DRAFT` while it is being written, `OPEN` while it takes applications and `CLOSED` when hiring stops. `PUT /api/v1/jobs/{id}/status` publishes a draft (`DRAFT` → `OPEN`), closes an open job (`OPEN` → `CLOSED`) or reopens a closed one (`CLOSED` → `OPEN`). A job never returns to `DRAFT`, and a draft cannot be closed without being published; those moves return `409`, as does a full update (`PUT /api/v1/jobs/{id}`) whose `status` breaks the same rules. Asking for the status a job already has changes nothing. A new job can start in any status and defaults to `OPEN`.
