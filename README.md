@@ -9,6 +9,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 ## What works today
 
 - Jobs API: create, list, read, update, delete
+- Soft delete for jobs: a deleted job drops out of lists and reads but keeps its applications, and can be restored
 - Job lifecycle: drafts are published, open jobs closed and closed jobs reopened, with any other move rejected
 - Optional application deadline (`closesAt`) on jobs, after which applications are refused
 - Paginated, sortable job and candidate lists
@@ -147,7 +148,8 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 |---|---|---|
 | `POST` | `/api/v1/jobs` | Create a job |
 | `GET` | `/api/v1/jobs` | List jobs (paginated; filter with `status`, `location`) |
-| `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or delete a job |
+| `GET` `PUT` `DELETE` | `/api/v1/jobs/{id}` | Read, update or (soft) delete a job |
+| `POST` | `/api/v1/jobs/{id}/restore` | Restore a deleted job with its applications |
 | `PUT` | `/api/v1/jobs/{id}/status` | Move a job through its lifecycle (`status`) |
 | `POST` | `/api/v1/candidates` | Create a candidate |
 | `GET` | `/api/v1/candidates` | List candidates (paginated; search with `q`, filter with `skill`, `minExperience`) |
