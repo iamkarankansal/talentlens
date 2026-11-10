@@ -87,7 +87,7 @@ class PostgresIntegrationTests {
     void appliesEveryMigrationIncludingThePgvectorTables() {
         assertThat(jdbcTemplate.queryForObject("select version()", String.class)).startsWith("PostgreSQL");
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("9");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("10");
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from pg_extension where extname = 'vector'", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
