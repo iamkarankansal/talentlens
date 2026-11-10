@@ -36,6 +36,8 @@ public class Job {
 
     private Instant closesAt;
 
+    private Instant deletedAt;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -58,6 +60,12 @@ public class Job {
     public Instant getClosesAt() { return closesAt; }
     public void setClosesAt(Instant closesAt) { this.closesAt = closesAt; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 
     /** Whether the application deadline, if the job has one, has been reached at the given moment. */
     public boolean isPastDeadline(Instant now) {

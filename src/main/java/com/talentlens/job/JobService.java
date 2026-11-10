@@ -1,5 +1,6 @@
 package com.talentlens.job;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,16 +78,30 @@ public class JobService {
                     allEntries = true)
     })
     public void delete(Long id) {
-        repository.delete(getOrThrow(id));
+        getOrThrow(id).setDeletedAt(Instant.now());
     }
 
+    /** Brings back a soft-deleted job together with the applications it kept. */
+    @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id")
+    public JobResponse restore(Long id) {
+        Job job = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job", id));
+        if (!job.isDeleted()) {
+            throw new ConflictException("Job " + id + " is not deleted");
+        }
+        job.setDeletedAt(null);
+        return JobResponse.from(job);
+    }
+
+    /** Loads a job that has not been deleted; deleted jobs are reported as not found. */
     public Job getOrThrow(Long id) {
-        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job", id));
+        return repository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job", id));
     }
 
     private Specification<Job> matching(JobStatus status, String location) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNull(root.get("deletedAt")));
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }

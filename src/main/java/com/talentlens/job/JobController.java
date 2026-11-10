@@ -61,6 +61,11 @@ public class JobController {
         return service.changeStatus(id, request.status());
     }
 
+    @PostMapping("/{id}/restore")
+    public JobResponse restore(@PathVariable Long id) {
+        return service.restore(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
