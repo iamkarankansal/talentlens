@@ -242,6 +242,71 @@ class CandidateApiTests {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void trimsNameEmailAndPhoneBeforeValidating() throws Exception {
+        mockMvc.perform(post("/api/v1/candidates").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"  Asha Verma ","email":"  Asha@Example.COM ","phone":" +91 98765-43210 "}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fullName", is("Asha Verma")))
+                .andExpect(jsonPath("$.email", is("asha@example.com")))
+                .andExpect(jsonPath("$.phone", is("+91 98765-43210")));
+
+        mockMvc.perform(post("/api/v1/candidates").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Rohan Mehta","email":"rohan@example.com","phone":"   "}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.phone", nullValue()));
+    }
+
+    @Test
+    void acceptsCommonPhoneFormats() throws Exception {
+        String[] phones = {"(555) 123-4567", "555.123.4567", "9876543210", "+1 (555) 123 4567"};
+        for (int i = 0; i < phones.length; i++) {
+            mockMvc.perform(post("/api/v1/candidates").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"fullName\":\"Candidate " + i + "\",\"email\":\"c" + i
+                                    + "@example.com\",\"phone\":\"" + phones[i] + "\"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.phone", is(phones[i])));
+        }
+    }
+
+    @Test
+    void rejectsMalformedPhoneNumbers() throws Exception {
+        for (String phone : List.of("12345", "call me", "++91 9876543210", "1234567890123456", "98765 43210 ext")) {
+            mockMvc.perform(post("/api/v1/candidates").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"fullName\":\"Asha Verma\",\"email\":\"asha@example.com\",\"phone\":\""
+                                    + phone + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.fieldErrors.phone", notNullValue()));
+        }
+    }
+
+    @Test
+    void rejectsOverlongNameAndEmail() throws Exception {
+        String longName = "A".repeat(256);
+        String longEmail = "a".repeat(60) + "@" + ("b".repeat(60) + ".").repeat(4) + "com";
+        mockMvc.perform(post("/api/v1/candidates").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fullName\":\"" + longName + "\",\"email\":\"" + longEmail + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.fullName", notNullValue()))
+                .andExpect(jsonPath("$.fieldErrors.email", notNullValue()));
+    }
+
+    @Test
+    void rejectsWhitespaceOnlyNameOnUpdate() throws Exception {
+        Long id = save("Asha Verma", "asha@example.com", null);
+
+        mockMvc.perform(put("/api/v1/candidates/" + id).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"   ","email":"asha@example.com"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.fullName", notNullValue()));
+    }
+
     private void saveWithProfile(String name, String email, Double years, List<String> skills) {
         Candidate candidate = new Candidate();
         candidate.setFullName(name);
