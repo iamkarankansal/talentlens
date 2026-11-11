@@ -16,6 +16,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Job filters by status and location, and candidate search by name or email
 - Candidate filters by parsed skill and minimum years of experience
 - Candidates API: create, list, read, update, delete, with case-insensitive unique emails
+- Candidate input checks: names, emails and phone numbers are trimmed, emails lower-cased, phone numbers must have 7 to 15 digits with common separators, and names and emails are length-limited
 - Applications: a candidate applies to an open job once, and the application starts in the `APPLIED` stage of the hiring pipeline
 - Application status changes that follow the pipeline, and paginated application lists per job (filterable by status) and per candidate
 - Application status history: every stage an application enters is recorded with its time
