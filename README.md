@@ -38,6 +38,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
+- Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
@@ -350,6 +351,8 @@ curl -X PUT localhost:8080/api/v1/users/2/role \
   -d '{"role":"RECRUITER"}'
 ```
 
+Access control is off by default so existing clients keep working. Set `AUTH_ENFORCED=true` and every `POST`, `PUT`, `PATCH` or `DELETE` under `/api/v1`, plus the AI endpoints (`/api/v1/assistant/**` and `/api/v1/jobs/{jobId}/matches/**`, reads included), needs a `RECRUITER` or `ADMIN` bearer token: no or an invalid token returns `401`, a `CANDIDATE` token `403`. Logging in, registering (`POST /api/v1/users`) and other reads stay open.
+
 Single jobs (`GET /api/v1/jobs/{id}`), candidate rankings (per job and `limit`) and match explanations (per job and candidate) are cached. `CACHE_TYPE` picks the backend: `simple` (the default) keeps entries in memory on each instance, `redis` stores them in Redis so every instance shares them, and `none` turns caching off. Redis entries expire after `CACHE_TTL` and are stored under keys starting with `talentlens:`. Updating or deleting a job, changing a candidate (details, resume or parsed profile) or computing a new embedding clears the affected entries, so a cached result never outlives the data it was built from. `docker compose up` starts Redis and runs the application with `CACHE_TYPE=redis`; set `REDIS_HEALTH_ENABLED=true` with Redis so `/actuator/health` reports its status.
 
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
@@ -388,6 +391,7 @@ src/main/java/com/talentlens
 | `JWT_EXPIRATION` | `1h` | How long an access token is valid (e.g. `30m`, `8h`) |
 | `JWT_ISSUER` | `talentlens` | Issuer written into and required on access tokens |
 | `ADMIN_EMAIL` | none | The account registered with this email becomes an `ADMIN` |
+| `AUTH_ENFORCED` | `false` | Require a `RECRUITER` or `ADMIN` token for write and AI endpoints |
 | `CACHE_TYPE` | `simple` | Cache backend: `redis`, `simple` (in memory) or `none` |
 | `CACHE_TTL` | `10m` | How long Redis keeps a cached entry |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |

@@ -54,7 +54,7 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 - [x] Candidate validation gaps: phone number format, trimmed lower-case emails and length limits
 
 ### Security
-- [ ] Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
+- [x] Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
 - [ ] Change password for the signed-in user
 - [ ] Login throttling: a temporary lockout after repeated failed logins for one email
 - [ ] Audit log of recruiter actions (job changes, application stage changes) with the acting user, readable by admins
