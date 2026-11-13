@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
+import com.talentlens.common.BadRequestException;
 import com.talentlens.common.ForbiddenException;
 import com.talentlens.common.UnauthorizedException;
 import com.talentlens.user.Role;
@@ -43,6 +44,23 @@ public class AuthService {
         }
         JwtService.IssuedToken token = jwtService.issue(user.get());
         return new TokenResponse(token.token(), "Bearer", token.expiresInSeconds());
+    }
+
+    /**
+     * Replaces the signed-in user's password after checking the current one. A wrong current password is a
+     * {@code 400} rather than a {@code 401}, because the token itself is valid.
+     */
+    @Transactional
+    public void changePassword(String authorizationHeader, ChangePasswordRequest request) {
+        UserAccount user = authenticate(authorizationHeader);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("The current password is incorrect");
+        }
+        if (request.newPassword().equals(request.currentPassword())) {
+            throw new BadRequestException("The new password must differ from the current one");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        repository.save(user);
     }
 
     public UserResponse currentUser(String authorizationHeader) {
