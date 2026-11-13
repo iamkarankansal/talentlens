@@ -37,6 +37,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Caching of job lookups, candidate rankings and match explanations, in Redis or in memory, cleared when a job, candidate or embedding changes
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
+- Password change for the signed-in user, checked against the current password
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
 - Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
 - OpenAPI 3 description of the API with a Swagger UI to try it out
@@ -181,6 +182,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `PUT` | `/api/v1/users/{id}/role` | Change a user's `role` (admin token required) |
 | `POST` | `/api/v1/auth/login` | Exchange `email` and `password` for a JWT access token |
 | `GET` | `/api/v1/auth/me` | Read the user the bearer token belongs to |
+| `PUT` | `/api/v1/auth/password` | Change the signed-in user's password (`currentPassword`, `newPassword`) |
 | `GET` | `/actuator/health` | Health check |
 | `GET` | `/actuator/info` | Build information, including the running version |
 
@@ -340,6 +342,14 @@ TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login \
   -d '{"email":"recruiter@example.com","password":"a-long-passphrase"}' | jq -r .accessToken)
 
 curl localhost:8080/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
+```
+
+`PUT /api/v1/auth/password` changes the signed-in user's password and returns `204`. It needs the bearer token and the `currentPassword`; a wrong current password, or a `newPassword` equal to the current one, returns `400`, and the new password must be 8 to 72 characters like at registration. Tokens issued before the change stay valid until they expire.
+
+```bash
+curl -X PUT localhost:8080/api/v1/auth/password \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"currentPassword":"a-long-passphrase","newPassword":"another-passphrase"}'
 ```
 
 Every account has a `role`: `ADMIN`, `RECRUITER` or `CANDIDATE`. It is returned with the user and written into access tokens as the `role` claim. Registration always creates a `CANDIDATE`, except for the account registered with `ADMIN_EMAIL`, which becomes the first `ADMIN`. An admin changes roles with `PUT /api/v1/users/{id}/role`; without a token the endpoint returns `401`, with a non-admin token `403`, and demoting the last remaining admin returns `409`. Roles are checked against the database, so a change applies straight away, even to tokens issued before it.
