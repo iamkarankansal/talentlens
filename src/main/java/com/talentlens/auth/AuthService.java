@@ -24,24 +24,30 @@ public class AuthService {
     private final UserAccountRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginThrottle loginThrottle;
     private final String dummyHash;
 
-    public AuthService(UserAccountRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserAccountRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       LoginThrottle loginThrottle) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginThrottle = loginThrottle;
         // Checked against unknown emails so they take as long as a wrong password.
         this.dummyHash = passwordEncoder.encode("not-a-real-password");
     }
 
     public TokenResponse login(LoginRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
+        loginThrottle.checkAllowed(email);
         Optional<UserAccount> user = repository.findByEmailIgnoreCase(email);
         String hash = user.map(UserAccount::getPasswordHash).orElse(dummyHash);
         boolean matches = passwordEncoder.matches(request.password(), hash);
         if (user.isEmpty() || !matches) {
+            loginThrottle.recordFailure(email);
             throw new UnauthorizedException("Invalid email or password");
         }
+        loginThrottle.recordSuccess(email);
         JwtService.IssuedToken token = jwtService.issue(user.get());
         return new TokenResponse(token.token(), "Bearer", token.expiresInSeconds());
     }
