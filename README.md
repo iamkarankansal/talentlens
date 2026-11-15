@@ -41,6 +41,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Login throttling: an email is locked out for a while after repeated failed logins, answered with `429` and `Retry-After`
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
 - Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
+- Audit log of job changes and application stage changes, with the acting user, readable by admins
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
@@ -184,6 +185,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `POST` | `/api/v1/auth/login` | Exchange `email` and `password` for a JWT access token |
 | `GET` | `/api/v1/auth/me` | Read the user the bearer token belongs to |
 | `PUT` | `/api/v1/auth/password` | Change the signed-in user's password (`currentPassword`, `newPassword`) |
+| `GET` | `/api/v1/audit-events` | Read the audit log, newest first (admin token required; filters `entityType`, `entityId`; paged) |
 | `GET` | `/actuator/health` | Health check |
 | `GET` | `/actuator/info` | Build information, including the running version |
 
@@ -364,6 +366,12 @@ curl -X PUT localhost:8080/api/v1/users/2/role \
   -d '{"role":"RECRUITER"}'
 ```
 
+Creating, updating, deleting and restoring a job, changing its status and moving an application to another stage each write an audit event in the same transaction as the change, so a rejected change leaves no entry. An event records the `action`, the `entityType` (`JOB` or `APPLICATION`) and `entityId`, short `details` such as `OPEN -> CLOSED`, the time, and the acting user's `actorId` and `actorEmail` taken from the bearer token; both are `null` when the request carried no valid token, which can happen while `AUTH_ENFORCED` is off. Admins read the log with `GET /api/v1/audit-events`, filtered by `entityType` and optionally `entityId`, paged and sortable by `id`, `action` or `occurredAt`; without a token it returns `401`, with a non-admin token `403`.
+
+```bash
+curl "localhost:8080/api/v1/audit-events?entityType=JOB&entityId=1" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
 Access control is off by default so existing clients keep working. Set `AUTH_ENFORCED=true` and every `POST`, `PUT`, `PATCH` or `DELETE` under `/api/v1`, plus the AI endpoints (`/api/v1/assistant/**` and `/api/v1/jobs/{jobId}/matches/**`, reads included), needs a `RECRUITER` or `ADMIN` bearer token: no or an invalid token returns `401`, a `CANDIDATE` token `403`. Logging in, registering (`POST /api/v1/users`) and other reads stay open.
 
 Single jobs (`GET /api/v1/jobs/{id}`), candidate rankings (per job and `limit`) and match explanations (per job and candidate) are cached. `CACHE_TYPE` picks the backend: `simple` (the default) keeps entries in memory on each instance, `redis` stores them in Redis so every instance shares them, and `none` turns caching off. Redis entries expire after `CACHE_TTL` and are stored under keys starting with `talentlens:`. Updating or deleting a job, changing a candidate (details, resume or parsed profile) or computing a new embedding clears the affected entries, so a cached result never outlives the data it was built from. `docker compose up` starts Redis and runs the application with `CACHE_TYPE=redis`; set `REDIS_HEALTH_ENABLED=true` with Redis so `/actuator/health` reports its status.
@@ -384,6 +392,7 @@ src/main/java/com/talentlens
 ├── assistant/   Recruiter assistant: chat over the candidate pool, interview questions, shortlisting and email agents
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
+├── audit/       Audit log of recruiter actions
 ├── config/      Application configuration (OpenAPI, password hashing, JWT settings, caching)
 └── common/      Error handling shared by all modules
 ```
