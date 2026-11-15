@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.talentlens.audit.AuditAction;
+import com.talentlens.audit.AuditService;
 import com.talentlens.common.ConflictException;
 import com.talentlens.common.LikePattern;
 import com.talentlens.common.PageResponse;
@@ -23,9 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class JobService {
 
     private final JobRepository repository;
+    private final AuditService auditService;
 
-    public JobService(JobRepository repository) {
+    public JobService(JobRepository repository, AuditService auditService) {
         this.repository = repository;
+        this.auditService = auditService;
     }
 
     public JobResponse create(JobRequest request) {
@@ -34,7 +38,10 @@ public class JobService {
         if (request.status() != null) {
             job.setStatus(request.status());
         }
-        return JobResponse.from(repository.save(job));
+        Job saved = repository.save(job);
+        auditService.record(AuditAction.JOB_CREATED, AuditService.JOB, saved.getId(),
+                saved.getTitle() + " (" + saved.getStatus() + ")");
+        return JobResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -55,10 +62,14 @@ public class JobService {
     })
     public JobResponse update(Long id, JobRequest request) {
         Job job = getOrThrow(id);
+        JobStatus previous = job.getStatus();
         apply(job, request);
         if (request.status() != null && request.status() != job.getStatus()) {
             moveTo(job, request.status());
         }
+        String details = previous == job.getStatus() ? job.getTitle()
+                : job.getTitle() + " (" + previous + " -> " + job.getStatus() + ")";
+        auditService.record(AuditAction.JOB_UPDATED, AuditService.JOB, id, details);
         return JobResponse.from(job);
     }
 
@@ -68,7 +79,9 @@ public class JobService {
         if (job.getStatus() == next) {
             return JobResponse.from(job);
         }
+        JobStatus previous = job.getStatus();
         moveTo(job, next);
+        auditService.record(AuditAction.JOB_STATUS_CHANGED, AuditService.JOB, id, previous + " -> " + next);
         return JobResponse.from(job);
     }
 
@@ -78,7 +91,9 @@ public class JobService {
                     allEntries = true)
     })
     public void delete(Long id) {
-        getOrThrow(id).setDeletedAt(Instant.now());
+        Job job = getOrThrow(id);
+        job.setDeletedAt(Instant.now());
+        auditService.record(AuditAction.JOB_DELETED, AuditService.JOB, id, job.getTitle());
     }
 
     /** Brings back a soft-deleted job together with the applications it kept. */
@@ -89,6 +104,7 @@ public class JobService {
             throw new ConflictException("Job " + id + " is not deleted");
         }
         job.setDeletedAt(null);
+        auditService.record(AuditAction.JOB_RESTORED, AuditService.JOB, id, job.getTitle());
         return JobResponse.from(job);
     }
 

@@ -5,6 +5,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import com.talentlens.audit.AuditAction;
+import com.talentlens.audit.AuditService;
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
 import com.talentlens.common.ConflictException;
@@ -27,15 +29,17 @@ public class ApplicationService {
     private final ApplicationNoteRepository notes;
     private final CandidateService candidateService;
     private final JobService jobService;
+    private final AuditService auditService;
 
     public ApplicationService(ApplicationRepository repository, ApplicationStatusChangeRepository statusChanges,
                               ApplicationNoteRepository notes, CandidateService candidateService,
-                              JobService jobService) {
+                              JobService jobService, AuditService auditService) {
         this.repository = repository;
         this.statusChanges = statusChanges;
         this.notes = notes;
         this.candidateService = candidateService;
         this.jobService = jobService;
+        this.auditService = auditService;
     }
 
     public ApplicationResponse create(ApplicationRequest request) {
@@ -68,6 +72,8 @@ public class ApplicationService {
         }
         application.setStatus(next);
         statusChanges.save(new ApplicationStatusChange(id, current, next));
+        auditService.record(AuditAction.APPLICATION_STATUS_CHANGED, AuditService.APPLICATION, id,
+                current + " -> " + next);
         repository.flush();
         return ApplicationResponse.from(application);
     }
