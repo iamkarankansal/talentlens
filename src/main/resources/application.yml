@@ -44,6 +44,11 @@ spring:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
 talentlens:
+  ai:
+    rate-limit:
+      # AI calls one client (by remote address) may make per window. 0 turns the limit off.
+      requests: ${AI_RATE_LIMIT_REQUESTS:30}
+      window: ${AI_RATE_LIMIT_WINDOW:1m}
   security:
     bcrypt-strength: ${BCRYPT_STRENGTH:10}
     # The account registered with this email becomes an ADMIN. Everyone else starts as a CANDIDATE.
