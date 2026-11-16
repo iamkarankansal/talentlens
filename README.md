@@ -40,6 +40,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Password change for the signed-in user, checked against the current password
 - Login throttling: an email is locked out for a while after repeated failed logins, answered with `429` and `Retry-After`
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
+- Rate limiting on AI endpoints per client, answered with `429` and `Retry-After`
 - Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
 - Audit log of job changes and application stage changes, with the acting user, readable by admins
 - OpenAPI 3 description of the API with a Swagger UI to try it out
@@ -349,6 +350,8 @@ curl localhost:8080/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
 
 After `LOGIN_MAX_ATTEMPTS` failed logins in a row for one email (default 5), that email is locked out for `LOGIN_LOCKOUT` (default `15m`): every login for it, even with the right password, returns `429` with a `Retry-After` header giving the seconds left. Unknown emails are counted the same way, failures older than the lockout period are forgotten, and a successful login clears the count. The counts are kept in memory per instance and reset on restart. Set `LOGIN_MAX_ATTEMPTS=0` to turn the throttle off.
 
+Every endpoint that calls the model or the embedding store (`/api/v1/assistant/**`, matches, explanations, skill gaps, the ranking export, embedding and resume parsing) is rate limited per client, keyed by the remote address. A client may make `AI_RATE_LIMIT_REQUESTS` such calls (default 30) per `AI_RATE_LIMIT_WINDOW` (default `1m`); further calls in that window return `429` with a `Retry-After` header giving the seconds until it ends. Other endpoints are not limited. The counts are kept in memory per instance and reset on restart; behind a reverse proxy, let the proxy pass the client address (for example with `server.forward-headers-strategy=native`). Set `AI_RATE_LIMIT_REQUESTS=0` to turn the limit off.
+
 `PUT /api/v1/auth/password` changes the signed-in user's password and returns `204`. It needs the bearer token and the `currentPassword`; a wrong current password, or a `newPassword` equal to the current one, returns `400`, and the new password must be 8 to 72 characters like at registration. Tokens issued before the change stay valid until they expire.
 
 ```bash
@@ -416,6 +419,8 @@ src/main/java/com/talentlens
 | `AUTH_ENFORCED` | `false` | Require a `RECRUITER` or `ADMIN` token for write and AI endpoints |
 | `LOGIN_MAX_ATTEMPTS` | `5` | Failed logins in a row before an email is locked out (`0` turns it off) |
 | `LOGIN_LOCKOUT` | `15m` | How long a locked-out email has to wait |
+| `AI_RATE_LIMIT_REQUESTS` | `30` | AI endpoint calls one client may make per window (`0` turns it off) |
+| `AI_RATE_LIMIT_WINDOW` | `1m` | Length of the AI rate limit window |
 | `CACHE_TYPE` | `simple` | Cache backend: `redis`, `simple` (in memory) or `none` |
 | `CACHE_TTL` | `10m` | How long Redis keeps a cached entry |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |
