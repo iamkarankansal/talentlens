@@ -45,6 +45,14 @@ spring:
 
 talentlens:
   ai:
+    client:
+      # Calls to the model provider, including the first one. Rate limits, server errors and timeouts are retried.
+      max-attempts: ${AI_RETRY_MAX_ATTEMPTS:3}
+      initial-backoff: ${AI_RETRY_INITIAL_BACKOFF:2s}
+      backoff-multiplier: ${AI_RETRY_MULTIPLIER:2.0}
+      max-backoff: ${AI_RETRY_MAX_BACKOFF:30s}
+      connect-timeout: ${AI_CONNECT_TIMEOUT:10s}
+      read-timeout: ${AI_READ_TIMEOUT:60s}
     rate-limit:
       # AI calls one client (by remote address) may make per window. 0 turns the limit off.
       requests: ${AI_RATE_LIMIT_REQUESTS:30}
