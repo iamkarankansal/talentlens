@@ -41,6 +41,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Login throttling: an email is locked out for a while after repeated failed logins, answered with `429` and `Retry-After`
 - Roles: every account is an `ADMIN`, `RECRUITER` or `CANDIDATE`; new accounts are candidates and admins assign roles
 - Rate limiting on AI endpoints per client, answered with `429` and `Retry-After`
+- Configurable retries with exponential backoff and connect and read timeouts for calls to the model provider
 - Optional access control: with `AUTH_ENFORCED=true`, write and AI endpoints need a `RECRUITER` or `ADMIN` token
 - Audit log of job changes and application stage changes, with the acting user, readable by admins
 - OpenAPI 3 description of the API with a Swagger UI to try it out
@@ -352,6 +353,8 @@ After `LOGIN_MAX_ATTEMPTS` failed logins in a row for one email (default 5), tha
 
 Every endpoint that calls the model or the embedding store (`/api/v1/assistant/**`, matches, explanations, skill gaps, the ranking export, embedding and resume parsing) is rate limited per client, keyed by the remote address. A client may make `AI_RATE_LIMIT_REQUESTS` such calls (default 30) per `AI_RATE_LIMIT_WINDOW` (default `1m`); further calls in that window return `429` with a `Retry-After` header giving the seconds until it ends. Other endpoints are not limited. The counts are kept in memory per instance and reset on restart; behind a reverse proxy, let the proxy pass the client address (for example with `server.forward-headers-strategy=native`). Set `AI_RATE_LIMIT_REQUESTS=0` to turn the limit off.
 
+Calls to the model provider (chat and embeddings) are retried when they hit a rate limit, a server error, a connection failure or a timeout. A call is tried up to `AI_RETRY_MAX_ATTEMPTS` times in total (default 3), waiting `AI_RETRY_INITIAL_BACKOFF` (default `2s`) before the first retry and multiplying the wait by `AI_RETRY_MULTIPLIER` (default `2.0`) each time, up to `AI_RETRY_MAX_BACKOFF` (default `30s`). Client errors such as an invalid API key are not retried. Each attempt may take `AI_CONNECT_TIMEOUT` (default `10s`) to connect and `AI_READ_TIMEOUT` (default `60s`) to answer. Every failed attempt is logged as a warning; when all attempts fail, the endpoint answers `503` as before. Set `AI_RETRY_MAX_ATTEMPTS=1` to turn retries off.
+
 `PUT /api/v1/auth/password` changes the signed-in user's password and returns `204`. It needs the bearer token and the `currentPassword`; a wrong current password, or a `newPassword` equal to the current one, returns `400`, and the new password must be 8 to 72 characters like at registration. Tokens issued before the change stay valid until they expire.
 
 ```bash
@@ -396,7 +399,7 @@ src/main/java/com/talentlens
 ├── user/        User accounts with hashed passwords and roles
 ├── auth/        JWT login and access tokens
 ├── audit/       Audit log of recruiter actions
-├── config/      Application configuration (OpenAPI, password hashing, JWT settings, caching)
+├── config/      Application configuration (OpenAPI, password hashing, JWT settings, caching, model retries and timeouts)
 └── common/      Error handling shared by all modules
 ```
 
@@ -421,6 +424,12 @@ src/main/java/com/talentlens
 | `LOGIN_LOCKOUT` | `15m` | How long a locked-out email has to wait |
 | `AI_RATE_LIMIT_REQUESTS` | `30` | AI endpoint calls one client may make per window (`0` turns it off) |
 | `AI_RATE_LIMIT_WINDOW` | `1m` | Length of the AI rate limit window |
+| `AI_RETRY_MAX_ATTEMPTS` | `3` | Tries per model call, including the first (`1` turns retries off) |
+| `AI_RETRY_INITIAL_BACKOFF` | `2s` | Wait before the first retry of a model call |
+| `AI_RETRY_MULTIPLIER` | `2.0` | Factor the wait grows by on each further retry |
+| `AI_RETRY_MAX_BACKOFF` | `30s` | Longest wait between retries |
+| `AI_CONNECT_TIMEOUT` | `10s` | Time allowed to connect to the model provider |
+| `AI_READ_TIMEOUT` | `60s` | Time allowed for the model provider to answer |
 | `CACHE_TYPE` | `simple` | Cache backend: `redis`, `simple` (in memory) or `none` |
 | `CACHE_TTL` | `10m` | How long Redis keeps a cached entry |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |
