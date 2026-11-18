@@ -34,7 +34,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
 - Shortlisting agent: the model calls tools to rank candidates for a job and read their profiles, then picks a shortlist with a reason for each; picks that are not real candidates are dropped
 - Email drafting agent: the model calls tools to read an application and the candidate's profile, then drafts a rejection or next-round email for the recruiter to review; nothing is sent
-- Caching of job lookups, candidate rankings and match explanations, in Redis or in memory, cleared when a job, candidate or embedding changes
+- Caching of job lookups, candidate rankings, match explanations and per-job required skills, in Redis or in memory, cleared when a job, candidate or embedding changes
 - User accounts: registration with case-insensitive unique emails and BCrypt-hashed passwords
 - JWT login: email and password exchanged for a signed, expiring access token, and the current user read back from it
 - Password change for the signed-in user, checked against the current password
@@ -99,7 +99,7 @@ TalentLens is a single Spring Boot application with one package per feature. Eac
 - **Matching.** The embedding model turns a job or a candidate profile into a vector stored in pgvector. Ranking, CSV export and the assistant's retrieval compare stored vectors by cosine similarity and never call the model.
 - **Agents.** The shortlist and email agents give the chat model tools (`@Tool` methods over the services) to look up rankings, profiles and applications. Their answers are checked against the database: unknown candidates are dropped and email recipients always come from the candidate record.
 - **Security.** Passwords are BCrypt hashes, logins return HS256 JWTs, and role changes are checked against the database on every request.
-- **Caching.** Job lookups, rankings and match explanations are cached and evicted whenever the data behind them changes.
+- **Caching.** Job lookups, rankings, match explanations and each job's extracted required skills are cached and evicted whenever the data behind them changes.
 
 ## End-to-end walkthrough
 
@@ -301,7 +301,7 @@ curl -OJ localhost:8080/api/v1/jobs/1/matches/export
 curl localhost:8080/api/v1/jobs/1/matches/3/explanation
 ```
 
-`GET /api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` lists the skills the job requires (`requiredSkills`, extracted from the job by the chat model) and splits them into those on the candidate's parsed profile (`matchedSkills`) and those that are not (`missingSkills`). Skills the candidate has that the job does not ask for are in `additionalSkills`. Skills are compared ignoring case, spaces, hyphens, underscores and dots, so `Spring-Boot` matches `SpringBoot` and `Node.js` matches `NodeJS`, while `C`, `C++` and `C#` stay distinct. `coverage` is the share of required skills the candidate has, from 0 to 1, or `null` when the job names none. The report also compares the job's `requiredExperienceYears` with the candidate's `candidateExperienceYears`; `meetsExperience` is `null` when either is unknown. The candidate's resume must be parsed first, otherwise the endpoint returns `409`; a model failure returns `503`.
+`GET /api/v1/jobs/{jobId}/matches/{candidateId}/skill-gap` lists the skills the job requires (`requiredSkills`, extracted from the job by the chat model) and splits them into those on the candidate's parsed profile (`matchedSkills`) and those that are not (`missingSkills`). Skills the candidate has that the job does not ask for are in `additionalSkills`. Skills are compared ignoring case, spaces, hyphens, underscores and dots, so `Spring-Boot` matches `SpringBoot` and `Node.js` matches `NodeJS`, while `C`, `C++` and `C#` stay distinct. `coverage` is the share of required skills the candidate has, from 0 to 1, or `null` when the job names none. The report also compares the job's `requiredExperienceYears` with the candidate's `candidateExperienceYears`; `meetsExperience` is `null` when either is unknown. The candidate's resume must be parsed first, otherwise the endpoint returns `409`; a model failure returns `503`. The required skills are extracted once per job and cached, so reports for other candidates on the same job reuse them until the job is updated.
 
 ```bash
 curl localhost:8080/api/v1/jobs/1/matches/3/skill-gap
@@ -380,7 +380,7 @@ curl "localhost:8080/api/v1/audit-events?entityType=JOB&entityId=1" -H "Authoriz
 
 Access control is off by default so existing clients keep working. Set `AUTH_ENFORCED=true` and every `POST`, `PUT`, `PATCH` or `DELETE` under `/api/v1`, plus the AI endpoints (`/api/v1/assistant/**` and `/api/v1/jobs/{jobId}/matches/**`, reads included), needs a `RECRUITER` or `ADMIN` bearer token: no or an invalid token returns `401`, a `CANDIDATE` token `403`. Logging in, registering (`POST /api/v1/users`) and other reads stay open.
 
-Single jobs (`GET /api/v1/jobs/{id}`), candidate rankings (per job and `limit`) and match explanations (per job and candidate) are cached. `CACHE_TYPE` picks the backend: `simple` (the default) keeps entries in memory on each instance, `redis` stores them in Redis so every instance shares them, and `none` turns caching off. Redis entries expire after `CACHE_TTL` and are stored under keys starting with `talentlens:`. Updating or deleting a job, changing a candidate (details, resume or parsed profile) or computing a new embedding clears the affected entries, so a cached result never outlives the data it was built from. `docker compose up` starts Redis and runs the application with `CACHE_TYPE=redis`; set `REDIS_HEALTH_ENABLED=true` with Redis so `/actuator/health` reports its status.
+Single jobs (`GET /api/v1/jobs/{id}`), candidate rankings (per job and `limit`), match explanations (per job and candidate) and the required skills the model extracts for skill-gap reports (per job) are cached. `CACHE_TYPE` picks the backend: `simple` (the default) keeps entries in memory on each instance, `redis` stores them in Redis so every instance shares them, and `none` turns caching off. Redis entries expire after `CACHE_TTL` and are stored under keys starting with `talentlens:`. Updating or deleting a job, changing a candidate (details, resume or parsed profile) or computing a new embedding clears the affected entries, so a cached result never outlives the data it was built from. `docker compose up` starts Redis and runs the application with `CACHE_TYPE=redis`; set `REDIS_HEALTH_ENABLED=true` with Redis so `/actuator/health` reports its status.
 
 Interactive documentation is generated from the code: Swagger UI at `http://localhost:8080/swagger-ui.html` and the OpenAPI document at `/v3/api-docs` (JSON) or `/v3/api-docs.yaml`. Set `API_DOCS_ENABLED=false` to turn both off.
 
