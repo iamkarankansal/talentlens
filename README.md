@@ -23,7 +23,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Recruiter notes on applications, listed oldest first
 - Pipeline summary: how many of a job's applications sit in each stage
 - Resume upload as PDF, with the text extracted and stored on the candidate
-- Resume parsing: the model extracts headline, experience, skills and education as JSON
+- Resume parsing: the model extracts headline, experience, skills and education as JSON; resumes too short to parse are refused, overlong ones cut before the model call, and implausible experience dropped
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
 - Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
@@ -207,7 +207,7 @@ A resume can also be uploaded as a PDF. The text is extracted with Apache PDFBox
 curl -X POST localhost:8080/api/v1/candidates/1/resume -F file=@resume.pdf
 ```
 
-Parsing a resume saves the headline, years of experience and skills on the candidate, so later reads of the candidate include `headline`, `experienceYears`, `skills` and `profileParsedAt`. Skills are trimmed and de-duplicated ignoring case. Changing a candidate's resume text clears the stored profile until the resume is parsed again.
+Parsing a resume saves the headline, years of experience and skills on the candidate, so later reads of the candidate include `headline`, `experienceYears`, `skills` and `profileParsedAt`. Skills are trimmed and de-duplicated ignoring case. Changing a candidate's resume text clears the stored profile until the resume is parsed again. A resume shorter than 20 characters (after trimming) returns `409` without calling the model, and only the first 20,000 characters of a longer resume are sent to it. A total experience below 0 or above 60 years is treated as a parsing mistake and dropped, both from the response and from the candidate.
 
 List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`field` or `field,asc|desc`, default `createdAt,desc`), and return `content` with `page`, `size`, `totalElements` and `totalPages`. Jobs sort by `id`, `title`, `location`, `minExperienceYears`, `status` or `createdAt`; candidates by `id`, `fullName`, `email` or `createdAt`.
 

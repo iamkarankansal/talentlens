@@ -63,7 +63,7 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 - [x] Rate limiting on AI endpoints per client, answering `429` with `Retry-After`
 - [x] Configurable model retries and timeouts wired to Spring AI
 - [x] Cache the model's required-skill extraction per job so repeated skill-gap reports do not ask the model again
-- [ ] Resume parsing edge cases: resumes too short to parse rejected, overlong text cut before the model call, implausible experience values dropped
+- [x] Resume parsing edge cases: resumes too short to parse rejected, overlong text cut before the model call, implausible experience values dropped
 - [ ] Batch embedding: one call embeds every candidate that has no embedding yet
 - [ ] Recruiter chat fallback: when the chat model fails, return the retrieved candidates with a notice instead of a bare `503`
 
