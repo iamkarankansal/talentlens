@@ -17,6 +17,7 @@ import java.util.List;
 
 import com.talentlens.ai.MatchExplainer;
 import com.talentlens.ai.MatchExplanation;
+import com.talentlens.ai.SkillExtractor;
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateRepository;
 import com.talentlens.job.Job;
@@ -61,12 +62,15 @@ class CachingApiTests {
     @MockitoBean
     private MatchExplainer matchExplainer;
 
+    @MockitoBean
+    private SkillExtractor skillExtractor;
+
     @BeforeEach
     void clean() {
         candidateRepository.deleteAll();
         jobRepository.deleteAll();
         for (String name : List.of(CacheConfig.JOBS, CacheConfig.CANDIDATE_RANKINGS,
-                CacheConfig.MATCH_EXPLANATIONS)) {
+                CacheConfig.MATCH_EXPLANATIONS, CacheConfig.REQUIRED_SKILLS)) {
             Cache cache = cacheManager.getCache(name);
             if (cache != null) {
                 cache.clear();
@@ -139,6 +143,35 @@ class CachingApiTests {
                 .andExpect(status().isOk());
         mockMvc.perform(get(url)).andExpect(status().isOk());
         verify(matchExplainer, times(2)).explain(anyString(), anyString());
+    }
+
+    @Test
+    void extractsAJobsRequiredSkillsOnceUntilTheJobIsUpdated() throws Exception {
+        Long jobId = job();
+        Long first = candidate("Asha Rao", "asha@example.com");
+        Long second = candidate("Ben Ode", "ben@example.com");
+        when(skillExtractor.requiredSkills(anyString())).thenReturn(List.of("Java", "Kubernetes"));
+
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches/" + first + "/skill-gap"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.missingSkills[0]", is("Kubernetes")));
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches/" + second + "/skill-gap"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matchedSkills[0]", is("Java")));
+        verify(skillExtractor, times(1)).requiredSkills(anyString());
+
+        Object cached = cacheManager.getCache(CacheConfig.REQUIRED_SKILLS).get(jobId).get();
+        JdkSerializationRedisSerializer serializer = new JdkSerializationRedisSerializer();
+        assertThat(serializer.deserialize(serializer.serialize(cached))).isEqualTo(cached);
+
+        mockMvc.perform(put("/api/v1/jobs/" + jobId).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Platform Engineer","description":"Run Kubernetes clusters"}
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/jobs/" + jobId + "/matches/" + first + "/skill-gap"))
+                .andExpect(status().isOk());
+        verify(skillExtractor, times(2)).requiredSkills(anyString());
     }
 
     private Long job() {
