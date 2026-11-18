@@ -2,7 +2,6 @@ package com.talentlens.ai;
 
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateService;
-import com.talentlens.common.ConflictException;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,15 +23,13 @@ public class ResumeAnalysisController {
 
     /**
      * Parses the candidate's resume and stores the headline, experience and skills on the candidate.
+     * Resumes too short to parse return {@code 409}; very long ones are cut before the model sees them.
      */
     @PostMapping("/parse")
     public ResumeProfile parse(@PathVariable Long candidateId) {
         Candidate candidate = candidateService.getOrThrow(candidateId);
-        String resume = candidate.getResumeText();
-        if (resume == null || resume.isBlank()) {
-            throw new ConflictException("Candidate " + candidateId + " has no resume text to parse");
-        }
-        ResumeProfile profile = resumeParser.parse(resume);
+        String resume = ResumeParsingRules.prepare(candidateId, candidate.getResumeText());
+        ResumeProfile profile = ResumeParsingRules.plausible(resumeParser.parse(resume));
         candidateService.updateProfile(candidateId, profile.headline(), profile.totalExperienceYears(),
                 profile.skills());
         return profile;

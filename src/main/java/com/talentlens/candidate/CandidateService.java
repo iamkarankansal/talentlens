@@ -29,6 +29,8 @@ public class CandidateService {
     private static final int MAX_TEXT_LENGTH = 255;
     private static final int MAX_SKILLS = 100;
     private static final int MAX_RESUME_LENGTH = 50000;
+    /** Parsed experience above this is a parsing mistake rather than a career. */
+    private static final double MAX_EXPERIENCE_YEARS = 60.0;
 
     private final CandidateRepository repository;
 
@@ -177,7 +179,7 @@ public class CandidateService {
     }
 
     private static Double validYears(Double years) {
-        if (years == null || years.isNaN() || years.isInfinite() || years < 0) {
+        if (years == null || years.isNaN() || years.isInfinite() || years < 0 || years > MAX_EXPERIENCE_YEARS) {
             return null;
         }
         return years;
