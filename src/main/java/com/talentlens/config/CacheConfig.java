@@ -4,7 +4,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Caches job lookups and match results. The cache backend comes from {@code spring.cache.type}: Redis when
+ * Caches job lookups, match results and the skills extracted from each job. The cache backend comes from {@code spring.cache.type}: Redis when
  * {@code CACHE_TYPE=redis}, an in-memory map by default, or {@code none} to switch caching off.
  */
 @Configuration
@@ -19,4 +19,7 @@ public class CacheConfig {
 
     /** Model-written match explanations per job and candidate. */
     public static final String MATCH_EXPLANATIONS = "matchExplanations";
+
+    /** Model-extracted required skills per job. */
+    public static final String REQUIRED_SKILLS = "requiredSkills";
 }

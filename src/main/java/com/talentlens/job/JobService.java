@@ -56,7 +56,7 @@ public class JobService {
     }
 
     @Caching(evict = {
-            @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id"),
+            @CacheEvict(cacheNames = {CacheConfig.JOBS, CacheConfig.REQUIRED_SKILLS}, key = "#id"),
             @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS},
                     allEntries = true)
     })
@@ -86,7 +86,7 @@ public class JobService {
     }
 
     @Caching(evict = {
-            @CacheEvict(cacheNames = CacheConfig.JOBS, key = "#id"),
+            @CacheEvict(cacheNames = {CacheConfig.JOBS, CacheConfig.REQUIRED_SKILLS}, key = "#id"),
             @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS},
                     allEntries = true)
     })

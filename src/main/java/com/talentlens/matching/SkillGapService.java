@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import com.talentlens.ai.SkillExtractor;
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateRepository;
 import com.talentlens.common.ConflictException;
@@ -17,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Compares the skills a job requires, extracted by the language model, with the skills stored on the
+ * Compares the skills a job requires, extracted by the language model once per job and cached, with the skills stored on the
  * candidate's parsed profile. The comparison itself is deterministic and ignores case, spaces, hyphens,
  * underscores and dots, so {@code Spring Boot} matches {@code SpringBoot} and {@code Node.js} matches
  * {@code NodeJS}. Symbols such as {@code +} and {@code #} are kept, so {@code C++} and {@code C#} stay distinct.
@@ -28,13 +27,13 @@ public class SkillGapService {
 
     private final JobService jobService;
     private final CandidateRepository candidateRepository;
-    private final SkillExtractor skillExtractor;
+    private final RequiredSkillsCache requiredSkillsCache;
 
     public SkillGapService(JobService jobService, CandidateRepository candidateRepository,
-                           SkillExtractor skillExtractor) {
+                           RequiredSkillsCache requiredSkillsCache) {
         this.jobService = jobService;
         this.candidateRepository = candidateRepository;
-        this.skillExtractor = skillExtractor;
+        this.requiredSkillsCache = requiredSkillsCache;
     }
 
     public SkillGapResponse report(Long jobId, Long candidateId) {
@@ -46,7 +45,7 @@ public class SkillGapService {
                     + " has no parsed profile; POST /api/v1/candidates/" + candidateId + "/resume/parse first");
         }
 
-        Map<String, String> required = byKey(skillExtractor.requiredSkills(EmbeddingService.jobText(job)));
+        Map<String, String> required = byKey(requiredSkillsCache.requiredSkills(job));
         Map<String, String> owned = byKey(candidate.getSkills());
 
         List<String> matched = new ArrayList<>();
