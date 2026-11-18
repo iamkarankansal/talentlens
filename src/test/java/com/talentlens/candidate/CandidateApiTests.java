@@ -108,7 +108,7 @@ class CandidateApiTests {
 
     @Test
     void ignoresNegativeExperienceAndMissingSkills() throws Exception {
-        Long id = save("Asha Verma", "asha@example.com", "Some resume");
+        Long id = save("Asha Verma", "asha@example.com", "Some resume without any details");
         when(resumeParser.parse(anyString())).thenReturn(new ResumeProfile(null, -2.0, null, null, null));
 
         mockMvc.perform(post("/api/v1/candidates/" + id + "/resume/parse")).andExpect(status().isOk());
@@ -121,7 +121,7 @@ class CandidateApiTests {
 
     @Test
     void clearsTheProfileWhenTheResumeChanges() throws Exception {
-        Long id = save("Asha Verma", "asha@example.com", "5 years of Java");
+        Long id = save("Asha Verma", "asha@example.com", "5 years of Java and Spring Boot");
         when(resumeParser.parse(anyString())).thenReturn(new ResumeProfile(
                 "Backend Engineer", 5.0, List.of("Java"), List.of(), null));
         mockMvc.perform(post("/api/v1/candidates/" + id + "/resume/parse")).andExpect(status().isOk());
@@ -129,7 +129,7 @@ class CandidateApiTests {
         // Same resume: the profile stays.
         mockMvc.perform(put("/api/v1/candidates/" + id).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"fullName":"Asha V","email":"asha@example.com","resumeText":"5 years of Java"}
+                                {"fullName":"Asha V","email":"asha@example.com","resumeText":"5 years of Java and Spring Boot"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.skills", contains("Java")));
