@@ -21,6 +21,7 @@ public class AiRateLimitConfig implements WebMvcConfigurer {
             "/api/v1/jobs/*/matches/**",
             "/api/v1/jobs/*/embedding",
             "/api/v1/candidates/*/embedding",
+            "/api/v1/candidates/embeddings",
             "/api/v1/candidates/*/resume/parse"
     };
 

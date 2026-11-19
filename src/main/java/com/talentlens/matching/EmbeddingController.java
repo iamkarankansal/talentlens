@@ -30,4 +30,12 @@ public class EmbeddingController {
     public EmbeddingResponse embedCandidate(@PathVariable Long candidateId) {
         return service.embedCandidate(candidateId);
     }
+
+    /**
+     * Embeds every candidate that has no embedding yet in as few model calls as possible.
+     */
+    @PostMapping("/api/v1/candidates/embeddings")
+    public BatchEmbeddingResponse embedMissingCandidates() {
+        return service.embedMissingCandidates();
+    }
 }

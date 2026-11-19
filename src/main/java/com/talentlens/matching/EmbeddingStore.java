@@ -2,10 +2,12 @@ package com.talentlens.matching;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,6 +39,14 @@ public class EmbeddingStore {
         List<String> rows = jdbcTemplate.queryForList("select cast(embedding as varchar) from " + target.table()
                 + " where " + target.idColumn() + " = ?", String.class, id);
         return rows.isEmpty() ? Optional.empty() : Optional.of(fromText(rows.get(0)));
+    }
+
+    /**
+     * The ids of every owner that has a stored vector for the target.
+     */
+    public Set<Long> ids(EmbeddingTarget target) {
+        return new HashSet<>(jdbcTemplate.queryForList("select " + target.idColumn() + " from " + target.table(),
+                Long.class));
     }
 
     /**
