@@ -25,7 +25,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Resume upload as PDF, with the text extracted and stored on the candidate
 - Resume parsing: the model extracts headline, experience, skills and education as JSON; resumes too short to parse are refused, overlong ones cut before the model call, and implausible experience dropped
 - Parsed headline, years of experience and skills are stored on the candidate and returned with it
-- Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector
+- Embeddings of jobs and candidate profiles, computed by the embedding model and stored in pgvector, one at a time or every candidate still missing one in a single batch call
 - Semantic candidate ranking for a job, by cosine similarity of the stored embeddings
 - CSV export of a job's ranked candidates, ready to open in a spreadsheet
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
@@ -173,6 +173,7 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `GET` | `/api/v1/candidates/{candidateId}/applications` | List a candidate's applications (paginated) |
 | `POST` | `/api/v1/jobs/{jobId}/embedding` | Compute and store the job's embedding |
 | `POST` | `/api/v1/candidates/{candidateId}/embedding` | Compute and store the candidate's embedding |
+| `POST` | `/api/v1/candidates/embeddings` | Embed every candidate that has no embedding yet |
 | `GET` | `/api/v1/jobs/{jobId}/matches` | Rank candidates for the job by semantic similarity (`limit`, default 10) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/export` | Download the ranking as a CSV file (`limit`, default 50) |
 | `GET` | `/api/v1/jobs/{jobId}/matches/{candidateId}/explanation` | Explain why the candidate fits the job and what is missing |
@@ -283,6 +284,12 @@ curl -X POST localhost:8080/api/v1/jobs/1/embedding
 curl -X POST localhost:8080/api/v1/candidates/1/embedding
 ```
 
+`POST /api/v1/candidates/embeddings` embeds every candidate that has no embedding yet, so a freshly imported pool can be prepared in one request. The candidates' texts are sent to the embedding model together, up to 100 per model call, and the response gives the number `embedded`, the `candidateIds` that were embedded, the number `skipped` because they have neither a resume nor a parsed profile, and `embeddedAt`. Candidates that already have an embedding are left alone (use the single-candidate endpoint to refresh one). If any model call fails the endpoint returns `503` and stores nothing, so it can simply be called again.
+
+```bash
+curl -X POST localhost:8080/api/v1/candidates/embeddings
+```
+
 Once a job and some candidates have embeddings, `GET /api/v1/jobs/{jobId}/matches` ranks the candidates by the cosine similarity of their embedding to the job's, best first. Each match has its `rank`, `candidateId`, `fullName`, `headline` and a `score` from -1 to 1 (rounded to four decimals); `candidatesConsidered` counts every candidate that could be compared. `limit` (1-50, default 10) caps the number of matches. Candidates without an embedding, or whose vector has a different size from the job's (for example after changing `OPENAI_EMBEDDING_MODEL`), are left out until they are embedded again. A job without an embedding returns `409`. Ranking reads stored vectors only and never calls the model.
 
 ```bash
@@ -351,7 +358,7 @@ curl localhost:8080/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
 
 After `LOGIN_MAX_ATTEMPTS` failed logins in a row for one email (default 5), that email is locked out for `LOGIN_LOCKOUT` (default `15m`): every login for it, even with the right password, returns `429` with a `Retry-After` header giving the seconds left. Unknown emails are counted the same way, failures older than the lockout period are forgotten, and a successful login clears the count. The counts are kept in memory per instance and reset on restart. Set `LOGIN_MAX_ATTEMPTS=0` to turn the throttle off.
 
-Every endpoint that calls the model or the embedding store (`/api/v1/assistant/**`, matches, explanations, skill gaps, the ranking export, embedding and resume parsing) is rate limited per client, keyed by the remote address. A client may make `AI_RATE_LIMIT_REQUESTS` such calls (default 30) per `AI_RATE_LIMIT_WINDOW` (default `1m`); further calls in that window return `429` with a `Retry-After` header giving the seconds until it ends. Other endpoints are not limited. The counts are kept in memory per instance and reset on restart; behind a reverse proxy, let the proxy pass the client address (for example with `server.forward-headers-strategy=native`). Set `AI_RATE_LIMIT_REQUESTS=0` to turn the limit off.
+Every endpoint that calls the model or the embedding store (`/api/v1/assistant/**`, matches, explanations, skill gaps, the ranking export, single and batch embedding, and resume parsing) is rate limited per client, keyed by the remote address. A client may make `AI_RATE_LIMIT_REQUESTS` such calls (default 30) per `AI_RATE_LIMIT_WINDOW` (default `1m`); further calls in that window return `429` with a `Retry-After` header giving the seconds until it ends. Other endpoints are not limited. The counts are kept in memory per instance and reset on restart; behind a reverse proxy, let the proxy pass the client address (for example with `server.forward-headers-strategy=native`). Set `AI_RATE_LIMIT_REQUESTS=0` to turn the limit off.
 
 Calls to the model provider (chat and embeddings) are retried when they hit a rate limit, a server error, a connection failure or a timeout. A call is tried up to `AI_RETRY_MAX_ATTEMPTS` times in total (default 3), waiting `AI_RETRY_INITIAL_BACKOFF` (default `2s`) before the first retry and multiplying the wait by `AI_RETRY_MULTIPLIER` (default `2.0`) each time, up to `AI_RETRY_MAX_BACKOFF` (default `30s`). Client errors such as an invalid API key are not retried. Each attempt may take `AI_CONNECT_TIMEOUT` (default `10s`) to connect and `AI_READ_TIMEOUT` (default `60s`) to answer. Every failed attempt is logged as a warning; when all attempts fail, the endpoint answers `503` as before. Set `AI_RETRY_MAX_ATTEMPTS=1` to turn retries off.
 
