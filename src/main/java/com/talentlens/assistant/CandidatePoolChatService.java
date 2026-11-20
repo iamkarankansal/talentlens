@@ -14,6 +14,8 @@ import com.talentlens.matching.EmbeddingService;
 import com.talentlens.matching.EmbeddingStore;
 import com.talentlens.matching.EmbeddingTarget;
 import com.talentlens.matching.MatchingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Retrieval-augmented chat over the candidate pool: the question is embedded, the closest candidate
  * profiles are retrieved from the stored embeddings, and the chat model answers from those profiles only.
+ * If the chat model fails after retrieval, the retrieved candidates are still returned with a notice.
  */
 @Service
 @Transactional(readOnly = true)
 public class CandidatePoolChatService {
+
+    private static final Logger log = LoggerFactory.getLogger(CandidatePoolChatService.class);
 
     static final int DEFAULT_TOP_K = 5;
 
@@ -91,8 +96,14 @@ public class CandidatePoolChatService {
                     + "embed the candidates again");
         }
 
-        String answer = assistant.answer(question.trim(), context.toString().trim());
-        return new ChatResponse(answer == null ? "" : answer.trim(), sources);
+        String answer;
+        try {
+            answer = assistant.answer(question.trim(), context.toString().trim());
+        } catch (AiUnavailableException ex) {
+            log.warn("Chat model failed; returning {} retrieved candidates without an answer", sources.size(), ex);
+            return ChatResponse.fallback(sources);
+        }
+        return ChatResponse.answered(answer == null ? "" : answer.trim(), sources);
     }
 
     private static String truncate(String text) {
