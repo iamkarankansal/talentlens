@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -72,6 +74,8 @@ class AssistantChatApiTests {
                         .content("{\"question\":\"" + QUESTION + "\",\"topK\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.answer", is("Asha Rao (12) has Kafka experience.")))
+                .andExpect(jsonPath("$.fallback", is(false)))
+                .andExpect(jsonPath("$.notice", nullValue()))
                 .andExpect(jsonPath("$.sources", hasSize(2)))
                 .andExpect(jsonPath("$.sources[0].candidateId", is(kafka.intValue())))
                 .andExpect(jsonPath("$.sources[0].fullName", is("Asha Rao")))
@@ -127,15 +131,33 @@ class AssistantChatApiTests {
     }
 
     @Test
-    void returnsServiceUnavailableWhenTheModelFails() throws Exception {
-        candidate("Asha Rao", "asha@example.com", "Kafka", new float[] {1f, 0f});
+    void returnsTheRetrievedCandidatesWithANoticeWhenTheChatModelFails() throws Exception {
+        Long asha = candidate("Asha Rao", "asha@example.com", "Kafka", new float[] {1f, 0f});
+        Long ben = candidate("Ben Lee", "ben@example.com", "RabbitMQ", new float[] {1f, 1f});
         when(embeddingModel.embed(anyString())).thenReturn(new float[] {1f, 0f});
         when(assistant.answer(anyString(), anyString()))
                 .thenThrow(new AiUnavailableException("The recruiter assistant is unavailable right now", null));
 
         mockMvc.perform(post("/api/v1/assistant/chat").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\":\"" + QUESTION + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answer", is("")))
+                .andExpect(jsonPath("$.fallback", is(true)))
+                .andExpect(jsonPath("$.notice", startsWith("The chat model is unavailable right now")))
+                .andExpect(jsonPath("$.sources", hasSize(2)))
+                .andExpect(jsonPath("$.sources[0].candidateId", is(asha.intValue())))
+                .andExpect(jsonPath("$.sources[1].candidateId", is(ben.intValue())));
+    }
+
+    @Test
+    void returnsServiceUnavailableWhenTheEmbeddingModelFails() throws Exception {
+        candidate("Asha Rao", "asha@example.com", "Kafka", new float[] {1f, 0f});
+        when(embeddingModel.embed(anyString())).thenThrow(new RuntimeException("embedding outage"));
+
+        mockMvc.perform(post("/api/v1/assistant/chat").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"" + QUESTION + "\"}"))
                 .andExpect(status().isServiceUnavailable());
+        verifyNoInteractions(assistant);
     }
 
     private Long candidate(String name, String email, String resume, float[] vector) {
