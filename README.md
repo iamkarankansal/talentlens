@@ -30,7 +30,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - CSV export of a job's ranked candidates, ready to open in a spreadsheet
 - Match explanations: the model summarises why a candidate fits a job, listing strengths and missing requirements
 - Skill-gap reports: the job's required skills, extracted by the model, compared with the candidate's parsed skills and experience
-- Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources
+- Recruiter assistant chat: questions about the candidate pool answered by the chat model from the most relevant candidate profiles, retrieved by embedding similarity, with those candidates listed as sources, and still listed with a notice when the chat model is down
 - Interview question generator: the model writes questions tailored to a candidate and a job, each with the requirement or claim it probes and why it is worth asking
 - Shortlisting agent: the model calls tools to rank candidates for a job and read their profiles, then picks a shortlist with a reason for each; picks that are not real candidates are dropped
 - Email drafting agent: the model calls tools to read an application and the candidate's profile, then drafts a rejection or next-round email for the recruiter to review; nothing is sent
@@ -314,7 +314,7 @@ curl localhost:8080/api/v1/jobs/1/matches/3/explanation
 curl localhost:8080/api/v1/jobs/1/matches/3/skill-gap
 ```
 
-`POST /api/v1/assistant/chat` answers a recruiter's `question` (up to 2000 characters) about the candidate pool with retrieval-augmented generation. The question is embedded with the embedding model, the `topK` candidates (1-20, default 5) whose stored embeddings are closest to it are retrieved, and their profiles (headline, experience, skills and the start of the resume) are given to the chat model, which answers from those profiles only. The response has the `answer` and the `sources` it was based on, each with `candidateId`, `fullName`, `headline` and similarity `score`. Only candidates with an embedding are searched; if none have one the endpoint returns `409`, and a model failure returns `503`.
+`POST /api/v1/assistant/chat` answers a recruiter's `question` (up to 2000 characters) about the candidate pool with retrieval-augmented generation. The question is embedded with the embedding model, the `topK` candidates (1-20, default 5) whose stored embeddings are closest to it are retrieved, and their profiles (headline, experience, skills and the start of the resume) are given to the chat model, which answers from those profiles only. The response has the `answer` and the `sources` it was based on, each with `candidateId`, `fullName`, `headline` and similarity `score`. Only candidates with an embedding are searched; if none have one the endpoint returns `409`, and an embedding model failure returns `503`. If the chat model fails after the candidates were retrieved, the endpoint still answers `200` with the `sources`, an empty `answer`, `fallback: true` and a `notice` saying no answer could be written, so the recruiter can work from the closest candidates; otherwise `fallback` is `false` and `notice` is `null`.
 
 ```bash
 curl -X POST localhost:8080/api/v1/assistant/chat \

@@ -65,7 +65,7 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 - [x] Cache the model's required-skill extraction per job so repeated skill-gap reports do not ask the model again
 - [x] Resume parsing edge cases: resumes too short to parse rejected, overlong text cut before the model call, implausible experience values dropped
 - [x] Batch embedding: one call embeds every candidate that has no embedding yet
-- [ ] Recruiter chat fallback: when the chat model fails, return the retrieved candidates with a notice instead of a bare `503`
+- [x] Recruiter chat fallback: when the chat model fails, return the retrieved candidates with a notice instead of a bare `503`
 
 ### Observability
 - [ ] Correlation IDs: `X-Request-Id` accepted or generated, echoed in responses and written to every log line
