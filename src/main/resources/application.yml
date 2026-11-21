@@ -73,6 +73,11 @@ talentlens:
       expiration: ${JWT_EXPIRATION:1h}
       issuer: ${JWT_ISSUER:talentlens}
 
+logging:
+  pattern:
+    # Every log line written while handling a request carries its X-Request-Id.
+    level: "%5p [%X{requestId:-}]"
+
 management:
   health:
     redis:
