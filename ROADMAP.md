@@ -68,7 +68,7 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 - [x] Recruiter chat fallback: when the chat model fails, return the retrieved candidates with a notice instead of a bare `503`
 
 ### Observability
-- [ ] Correlation IDs: `X-Request-Id` accepted or generated, echoed in responses and written to every log line
+- [x] Correlation IDs: `X-Request-Id` accepted or generated, echoed in responses and written to every log line
 - [ ] Structured JSON logging, switched on with `LOG_FORMAT`
 - [ ] Actuator metrics and a Prometheus endpoint, with timers around model calls
 - [ ] Liveness and readiness probes, with the database part of readiness
