@@ -46,6 +46,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Audit log of job changes and application stage changes, with the acting user, readable by admins
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Correlation IDs: a well-formed `X-Request-Id` is kept (or a UUID generated), echoed in every response and written to every log line for that request
+- Structured JSON logging: `LOG_FORMAT=json` (Elastic Common Schema) or `logstash` writes one JSON object per log line, request id included
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors, malformed request bodies, missing upload fields and unsupported HTTP methods
@@ -212,6 +213,8 @@ curl -X POST localhost:8080/api/v1/candidates/1/resume -F file=@resume.pdf
 Parsing a resume saves the headline, years of experience and skills on the candidate, so later reads of the candidate include `headline`, `experienceYears`, `skills` and `profileParsedAt`. Skills are trimmed and de-duplicated ignoring case. Changing a candidate's resume text clears the stored profile until the resume is parsed again. A resume shorter than 20 characters (after trimming) returns `409` without calling the model, and only the first 20,000 characters of a longer resume are sent to it. A total experience below 0 or above 60 years is treated as a parsing mistake and dropped, both from the response and from the candidate.
 
 Every response carries an `X-Request-Id` header. Send your own (up to 64 letters, digits, `.`, `_`, `:` or `-`) to follow a request through the logs; anything else is replaced by a generated UUID. Log lines written while handling the request show the id after the level.
+
+Set `LOG_FORMAT=json` (or `ecs`) to write console logs as Elastic Common Schema JSON, one object per line, or `LOG_FORMAT=logstash` for the Logstash layout. The request id appears as the `requestId` field. `text` or no value keeps the plain pattern, and any other value stops the application at startup with an error naming `LOG_FORMAT`.
 
 List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`field` or `field,asc|desc`, default `createdAt,desc`), and return `content` with `page`, `size`, `totalElements` and `totalPages`. Jobs sort by `id`, `title`, `location`, `minExperienceYears`, `status` or `createdAt`; candidates by `id`, `fullName`, `email` or `createdAt`.
 
@@ -445,3 +448,4 @@ src/main/java/com/talentlens
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |
 | `REDIS_PASSWORD` | none | Redis password, if the server needs one |
 | `REDIS_HEALTH_ENABLED` | `false` | Include Redis in `/actuator/health` |
+| `LOG_FORMAT` | `text` | Console log format: `text`, `json` (Elastic Common Schema) or `logstash` |
