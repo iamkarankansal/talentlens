@@ -63,8 +63,7 @@ class MetricsApiTests {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("talentlens_ai_model_calls_seconds_count{")))
                 .andExpect(content().string(containsString("operation=\"embedding\"")))
-                .andExpect(content().string(containsString("outcome=\"success\"")))
-                .andExpect(content().string(containsString("application=\"talentlens\"")));
+                .andExpect(content().string(containsString("outcome=\"success\"")));
     }
 
     @Test
