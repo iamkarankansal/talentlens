@@ -1,5 +1,6 @@
 package com.talentlens.assistant;
 
+import com.talentlens.ai.ModelCallMetrics;
 import com.talentlens.common.AiUnavailableException;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
@@ -21,21 +22,23 @@ public class LlmEmailDraftAgent implements EmailDraftAgent {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmEmailDraftAgent(ChatClient.Builder builder) {
+    public LlmEmailDraftAgent(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public EmailDraft draft(EmailType type, String note, EmailDraftTools tools) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.EMAIL_DRAFT, () -> chatClient.prompt()
                     .user(user -> user.text("Draft a {type} email.\n\nRecruiter note:\n---\n{note}\n---")
                             .param("type", type.name())
                             .param("note", note == null || note.isBlank() ? "(none)" : note))
                     .tools(tools)
                     .call()
-                    .entity(EmailDraft.class);
+                    .entity(EmailDraft.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("The email drafting agent is unavailable right now", ex);
         }

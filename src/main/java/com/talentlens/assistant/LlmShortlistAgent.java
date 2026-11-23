@@ -1,5 +1,6 @@
 package com.talentlens.assistant;
 
+import com.talentlens.ai.ModelCallMetrics;
 import com.talentlens.common.AiUnavailableException;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
@@ -18,21 +19,23 @@ public class LlmShortlistAgent implements ShortlistAgent {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmShortlistAgent(ChatClient.Builder builder) {
+    public LlmShortlistAgent(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public Shortlist shortlist(String jobText, int size, ShortlistTools tools) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.SHORTLIST, () -> chatClient.prompt()
                     .user(user -> user.text("Shortlist at most {size} candidates.\n\nJob:\n---\n{job}\n---")
                             .param("size", String.valueOf(size))
                             .param("job", jobText))
                     .tools(tools)
                     .call()
-                    .entity(Shortlist.class);
+                    .entity(Shortlist.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("The shortlisting agent is unavailable right now", ex);
         }

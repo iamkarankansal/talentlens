@@ -18,19 +18,21 @@ public class LlmSkillExtractor implements SkillExtractor {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmSkillExtractor(ChatClient.Builder builder) {
+    public LlmSkillExtractor(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public List<String> requiredSkills(String jobText) {
         RequiredSkills result;
         try {
-            result = chatClient.prompt()
+            result = metrics.record(ModelCallMetrics.SKILL_EXTRACTION, () -> chatClient.prompt()
                     .user(user -> user.text("Job:\n---\n{job}\n---").param("job", jobText))
                     .call()
-                    .entity(RequiredSkills.class);
+                    .entity(RequiredSkills.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Skill extraction is unavailable right now", ex);
         }

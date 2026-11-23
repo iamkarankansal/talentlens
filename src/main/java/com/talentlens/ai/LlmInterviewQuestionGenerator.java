@@ -21,22 +21,24 @@ public class LlmInterviewQuestionGenerator implements InterviewQuestionGenerator
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmInterviewQuestionGenerator(ChatClient.Builder builder) {
+    public LlmInterviewQuestionGenerator(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public InterviewQuestions generate(String jobText, String candidateText, int count) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.INTERVIEW_QUESTIONS, () -> chatClient.prompt()
                     .user(user -> user.text("Write exactly {count} questions.\n\nJob:\n---\n{job}\n---\n\n"
                                     + "Candidate:\n---\n{candidate}\n---")
                             .param("count", String.valueOf(count))
                             .param("job", jobText)
                             .param("candidate", candidateText))
                     .call()
-                    .entity(InterviewQuestions.class);
+                    .entity(InterviewQuestions.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Interview questions are unavailable right now", ex);
         }

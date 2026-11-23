@@ -86,7 +86,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # Comma-separated actuator endpoints served over HTTP.
+        include: ${ACTUATOR_ENDPOINTS:health,info,metrics,prometheus}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # Histogram buckets for model call timers, so Prometheus can compute latency percentiles.
+      percentiles-histogram:
+        "[talentlens.ai.model.calls]": true
 
 springdoc:
   api-docs:

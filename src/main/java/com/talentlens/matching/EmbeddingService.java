@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.talentlens.ai.ModelCallMetrics;
 import com.talentlens.candidate.Candidate;
 import com.talentlens.candidate.CandidateRepository;
 import com.talentlens.candidate.CandidateService;
@@ -37,14 +38,17 @@ public class EmbeddingService {
     private final JobService jobService;
     private final CandidateService candidateService;
     private final CandidateRepository candidateRepository;
+    private final ModelCallMetrics metrics;
 
     public EmbeddingService(EmbeddingModel embeddingModel, EmbeddingStore store, JobService jobService,
-                            CandidateService candidateService, CandidateRepository candidateRepository) {
+                            CandidateService candidateService, CandidateRepository candidateRepository,
+                            ModelCallMetrics metrics) {
         this.embeddingModel = embeddingModel;
         this.store = store;
         this.jobService = jobService;
         this.candidateService = candidateService;
         this.candidateRepository = candidateRepository;
+        this.metrics = metrics;
     }
 
     @CacheEvict(cacheNames = {CacheConfig.CANDIDATE_RANKINGS, CacheConfig.MATCH_EXPLANATIONS}, allEntries = true)
@@ -125,7 +129,7 @@ public class EmbeddingService {
     private EmbeddingResponse embed(EmbeddingTarget target, Long id, String text) {
         float[] vector;
         try {
-            vector = embeddingModel.embed(text);
+            vector = metrics.record(ModelCallMetrics.EMBEDDING, () -> embeddingModel.embed(text));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Embeddings are unavailable right now", ex);
         }
@@ -140,7 +144,7 @@ public class EmbeddingService {
     private List<float[]> embedBatch(List<String> texts) {
         List<float[]> vectors;
         try {
-            vectors = embeddingModel.embed(texts);
+            vectors = metrics.record(ModelCallMetrics.EMBEDDING, () -> embeddingModel.embed(texts));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Embeddings are unavailable right now", ex);
         }

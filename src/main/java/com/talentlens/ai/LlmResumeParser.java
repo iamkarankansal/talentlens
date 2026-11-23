@@ -15,18 +15,20 @@ public class LlmResumeParser implements ResumeParser {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmResumeParser(ChatClient.Builder builder) {
+    public LlmResumeParser(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public ResumeProfile parse(String resumeText) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.RESUME_PARSING, () -> chatClient.prompt()
                     .user(user -> user.text("Resume:\n---\n{resume}\n---").param("resume", resumeText))
                     .call()
-                    .entity(ResumeProfile.class);
+                    .entity(ResumeProfile.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Resume parsing is unavailable right now", ex);
         }

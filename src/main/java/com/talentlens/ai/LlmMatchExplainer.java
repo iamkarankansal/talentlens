@@ -18,20 +18,22 @@ public class LlmMatchExplainer implements MatchExplainer {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmMatchExplainer(ChatClient.Builder builder) {
+    public LlmMatchExplainer(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public MatchExplanation explain(String jobText, String candidateText) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.MATCH_EXPLANATION, () -> chatClient.prompt()
                     .user(user -> user.text("Job:\n---\n{job}\n---\n\nCandidate:\n---\n{candidate}\n---")
                             .param("job", jobText)
                             .param("candidate", candidateText))
                     .call()
-                    .entity(MatchExplanation.class);
+                    .entity(MatchExplanation.class));
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("Match explanations are unavailable right now", ex);
         }

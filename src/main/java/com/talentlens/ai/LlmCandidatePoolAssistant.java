@@ -18,20 +18,22 @@ public class LlmCandidatePoolAssistant implements CandidatePoolAssistant {
             """;
 
     private final ChatClient chatClient;
+    private final ModelCallMetrics metrics;
 
-    public LlmCandidatePoolAssistant(ChatClient.Builder builder) {
+    public LlmCandidatePoolAssistant(ChatClient.Builder builder, ModelCallMetrics metrics) {
         this.chatClient = builder.defaultSystem(SYSTEM_PROMPT).build();
+        this.metrics = metrics;
     }
 
     @Override
     public String answer(String question, String candidateContext) {
         try {
-            return chatClient.prompt()
+            return metrics.record(ModelCallMetrics.CANDIDATE_CHAT, () -> chatClient.prompt()
                     .user(user -> user.text("Candidates:\n---\n{candidates}\n---\n\nQuestion:\n---\n{question}\n---")
                             .param("candidates", candidateContext)
                             .param("question", question))
                     .call()
-                    .content();
+                    .content());
         } catch (RuntimeException ex) {
             throw new AiUnavailableException("The recruiter assistant is unavailable right now", ex);
         }
