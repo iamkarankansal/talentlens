@@ -47,6 +47,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - OpenAPI 3 description of the API with a Swagger UI to try it out
 - Correlation IDs: a well-formed `X-Request-Id` is kept (or a UUID generated), echoed in every response and written to every log line for that request
 - Structured JSON logging: `LOG_FORMAT=json` (Elastic Common Schema) or `logstash` writes one JSON object per log line, request id included
+- Metrics at `/actuator/metrics` and in Prometheus format at `/actuator/prometheus`, with a timer around every model call tagged by operation and outcome
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors, malformed request bodies, missing upload fields and unsupported HTTP methods
@@ -193,6 +194,8 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `GET` | `/api/v1/audit-events` | Read the audit log, newest first (admin token required; filters `entityType`, `entityId`; paged) |
 | `GET` | `/actuator/health` | Health check |
 | `GET` | `/actuator/info` | Build information, including the running version |
+| `GET` | `/actuator/metrics` | Metric names; `/actuator/metrics/{name}` reads one |
+| `GET` | `/actuator/prometheus` | All metrics in Prometheus text format, for scraping |
 
 Example:
 
@@ -215,6 +218,8 @@ Parsing a resume saves the headline, years of experience and skills on the candi
 Every response carries an `X-Request-Id` header. Send your own (up to 64 letters, digits, `.`, `_`, `:` or `-`) to follow a request through the logs; anything else is replaced by a generated UUID. Log lines written while handling the request show the id after the level.
 
 Set `LOG_FORMAT=json` (or `ecs`) to write console logs as Elastic Common Schema JSON, one object per line, or `LOG_FORMAT=logstash` for the Logstash layout. The request id appears as the `requestId` field. `text` or no value keeps the plain pattern, and any other value stops the application at startup with an error naming `LOG_FORMAT`.
+
+Every call to the model provider is timed as `talentlens.ai.model.calls` (`talentlens_ai_model_calls_seconds` in Prometheus), tagged with `operation` (`skill-extraction`, `match-explanation`, `resume-parsing`, `interview-questions`, `candidate-chat`, `email-draft`, `shortlist` or `embedding`) and `outcome` (`success` or `failure`). The timer publishes histogram buckets, so latency percentiles can be computed with `histogram_quantile`. All metrics carry an `application` tag, and the standard HTTP, JVM and database pool metrics are there too. `ACTUATOR_ENDPOINTS` picks which actuator endpoints are served; set it to `health,info` to keep metrics private.
 
 List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`field` or `field,asc|desc`, default `createdAt,desc`), and return `content` with `page`, `size`, `totalElements` and `totalPages`. Jobs sort by `id`, `title`, `location`, `minExperienceYears`, `status` or `createdAt`; candidates by `id`, `fullName`, `email` or `createdAt`.
 
@@ -448,4 +453,5 @@ src/main/java/com/talentlens
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis server used when `CACHE_TYPE=redis` |
 | `REDIS_PASSWORD` | none | Redis password, if the server needs one |
 | `REDIS_HEALTH_ENABLED` | `false` | Include Redis in `/actuator/health` |
+| `ACTUATOR_ENDPOINTS` | `health,info,metrics,prometheus` | Actuator endpoints served over HTTP |
 | `LOG_FORMAT` | `text` | Console log format: `text`, `json` (Elastic Common Schema) or `logstash` |
