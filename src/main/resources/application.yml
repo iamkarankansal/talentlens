@@ -79,6 +79,20 @@ logging:
     level: "%5p [%X{requestId:-}]"
 
 management:
+  endpoint:
+    health:
+      # Kubernetes-style probes at /actuator/health/liveness and /actuator/health/readiness.
+      probes:
+        enabled: true
+      group:
+        liveness:
+          # Only the application's own state: a database outage should not restart the container.
+          include: livenessState
+          show-components: always
+        readiness:
+          # Stop routing traffic here while the database is unreachable.
+          include: readinessState,db
+          show-components: always
   health:
     redis:
       # Turn on together with CACHE_TYPE=redis, otherwise health reports DOWN without a Redis server.

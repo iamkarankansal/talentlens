@@ -19,6 +19,20 @@ spring:
       api-key: test-key
 
 management:
+  endpoint:
+    health:
+      # Kubernetes-style probes at /actuator/health/liveness and /actuator/health/readiness.
+      probes:
+        enabled: true
+      group:
+        liveness:
+          # Only the application's own state: a database outage should not restart the container.
+          include: livenessState
+          show-components: always
+        readiness:
+          # Stop routing traffic here while the database is unreachable.
+          include: readinessState,db
+          show-components: always
   endpoints:
     web:
       exposure:
