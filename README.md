@@ -48,6 +48,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Correlation IDs: a well-formed `X-Request-Id` is kept (or a UUID generated), echoed in every response and written to every log line for that request
 - Structured JSON logging: `LOG_FORMAT=json` (Elastic Common Schema) or `logstash` writes one JSON object per log line, request id included
 - Metrics at `/actuator/metrics` and in Prometheus format at `/actuator/prometheus`, with a timer around every model call tagged by operation and outcome
+- Liveness and readiness probes at `/actuator/health/liveness` and `/actuator/health/readiness`; readiness also checks the database
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
 - Consistent JSON error responses, including per-field validation errors, malformed request bodies, missing upload fields and unsupported HTTP methods
@@ -193,6 +194,8 @@ Steps 3, 4 (embedding), 5, 6 and 7 (email) call OpenAI; everything else works wi
 | `PUT` | `/api/v1/auth/password` | Change the signed-in user's password (`currentPassword`, `newPassword`) |
 | `GET` | `/api/v1/audit-events` | Read the audit log, newest first (admin token required; filters `entityType`, `entityId`; paged) |
 | `GET` | `/actuator/health` | Health check |
+| `GET` | `/actuator/health/liveness` | Liveness probe: is the application running |
+| `GET` | `/actuator/health/readiness` | Readiness probe: can it take traffic, including a database check (`503` when not) |
 | `GET` | `/actuator/info` | Build information, including the running version |
 | `GET` | `/actuator/metrics` | Metric names; `/actuator/metrics/{name}` reads one |
 | `GET` | `/actuator/prometheus` | All metrics in Prometheus text format, for scraping |
@@ -220,6 +223,8 @@ Every response carries an `X-Request-Id` header. Send your own (up to 64 letters
 Set `LOG_FORMAT=json` (or `ecs`) to write console logs as Elastic Common Schema JSON, one object per line, or `LOG_FORMAT=logstash` for the Logstash layout. The request id appears as the `requestId` field. `text` or no value keeps the plain pattern, and any other value stops the application at startup with an error naming `LOG_FORMAT`.
 
 Every call to the model provider is timed as `talentlens.ai.model.calls` (`talentlens_ai_model_calls_seconds` in Prometheus), tagged with `operation` (`skill-extraction`, `match-explanation`, `resume-parsing`, `interview-questions`, `candidate-chat`, `email-draft`, `shortlist` or `embedding`) and `outcome` (`success` or `failure`). The timer publishes histogram buckets, so latency percentiles can be computed with `histogram_quantile`. All metrics carry an `application` tag, and the standard HTTP, JVM and database pool metrics are there too. `ACTUATOR_ENDPOINTS` picks which actuator endpoints are served; set it to `health,info` to keep metrics private.
+
+For orchestrators such as Kubernetes, `/actuator/health/liveness` reports only the application's own state, so a database outage does not get the container restarted, while `/actuator/health/readiness` also includes the database and answers `503` with `OUT_OF_SERVICE` or `DOWN` when the instance should not receive traffic. Both list the checks they ran under `components`.
 
 List endpoints accept `page` (from 0), `size` (1-100, default 20) and `sort` (`field` or `field,asc|desc`, default `createdAt,desc`), and return `content` with `page`, `size`, `totalElements` and `totalPages`. Jobs sort by `id`, `title`, `location`, `minExperienceYears`, `status` or `createdAt`; candidates by `id`, `fullName`, `email` or `createdAt`.
 
