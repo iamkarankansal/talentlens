@@ -28,3 +28,19 @@ jobs:
           fi
       - name: Build and test
         run: mvn -B verify
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Docker Compose file
+        run: docker compose config --quiet
+      - name: Build the image
+        run: docker build -t talentlens:ci .
+      - name: Check the image runs as a non-root user
+        run: |
+          uid="$(docker run --rm --entrypoint id talentlens:ci -u)"
+          echo "Container user id: $uid"
+          test "$uid" != "0"
+      - name: Check curl is available for the healthcheck
+        run: docker run --rm --entrypoint curl talentlens:ci --version

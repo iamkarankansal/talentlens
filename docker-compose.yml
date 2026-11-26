@@ -44,6 +44,13 @@ services:
       REDIS_HEALTH_ENABLED: "true"
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
 
 volumes:
   pgdata:
