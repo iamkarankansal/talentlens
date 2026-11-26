@@ -51,6 +51,7 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 - Liveness and readiness probes at `/actuator/health/liveness` and `/actuator/health/readiness`; readiness also checks the database
 - Build version reported by `/actuator/info` and the OpenAPI document
 - Versioned database schema managed by Flyway migrations
+- Hardened container: the image runs as a non-root user with the heap sized from the container's memory limit, and Docker Compose health-checks the application through its readiness probe
 - Consistent JSON error responses, including per-field validation errors, malformed request bodies, missing upload fields and unsupported HTTP methods
 - Tests that run on in-memory H2 with the model mocked, so no API key is needed, plus plain unit tests for the skill-gap and matching services with their collaborators mocked
 - Integration tests against a real PostgreSQL with pgvector, started by Testcontainers, covering the PostgreSQL-only migrations, vector storage and ranking
@@ -67,6 +68,8 @@ docker compose up --build
 ```
 
 The API is served at `http://localhost:8080`. The `.env` file is git-ignored; never commit it.
+
+The application container runs as the unprivileged `talentlens` user. `JAVA_TOOL_OPTIONS` defaults to `-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError`, so the heap follows the container's memory limit and an out-of-memory error stops the process instead of leaving it half alive; set `JAVA_TOOL_OPTIONS` to override it. Compose marks the `app` service healthy once `/actuator/health/readiness` answers `200` (allowing 60 seconds for startup) and restarts it if it stops. `docker compose ps` shows the health status. CI builds the image on every push and checks that it does not run as root.
 
 To run only the tests (no key, no database needed):
 
