@@ -76,5 +76,5 @@ Target: v1.1 by 30 November 2026. Small improvements to the v1.0 product, built 
 ### Quality and operations
 - [x] Unit tests for `SkillGapService` and `MatchingService` with mocked collaborators
 - [x] Docker hardening: non-root user, container-aware JVM settings and an application healthcheck in Docker Compose
-- [ ] Demo data: `SEED_DEMO_DATA=true` loads a few jobs and candidates into an empty database
+- [x] Demo data: `SEED_DEMO_DATA=true` loads a few jobs and candidates into an empty database
 - [ ] v1.1: release notes in the README and version bump to 1.1.0
