@@ -44,6 +44,9 @@ spring:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
 talentlens:
+  demo:
+    # Load sample jobs and candidates at startup, only into a database with no jobs or candidates yet.
+    seed: ${SEED_DEMO_DATA:false}
   ai:
     client:
       # Calls to the model provider, including the first one. Rate limits, server errors and timeouts are retried.
