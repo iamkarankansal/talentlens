@@ -59,6 +59,24 @@ Built with Java 21, Spring Boot 3, Spring AI, PostgreSQL (pgvector) and Docker.
 
 See [ROADMAP.md](ROADMAP.md) for what is coming next.
 
+## Release notes
+
+### 1.1.0 (November 2026)
+
+Small improvements across the v1.0 product. Everything new is off or backwards compatible by default, so a 1.0.0 deployment upgrades by replacing the image; Flyway applies the new migrations on startup.
+
+- **Jobs and applications:** job lifecycle (`DRAFT`, `OPEN`, `CLOSED`) through `PUT /api/v1/jobs/{id}/status`; optional application deadline (`closesAt`); application status history; recruiter notes on applications; per-job pipeline summary; candidate filters by skill and minimum experience; soft delete and restore for jobs; stricter candidate input checks (phone format, trimmed lower-case emails, length limits).
+- **Security:** optional access control with `AUTH_ENFORCED=true`; password change for the signed-in user; login throttling with `429` and `Retry-After`; an admin-readable audit log of job and application stage changes.
+- **AI reliability:** per-client rate limiting on AI endpoints; configurable model retries and timeouts; cached required-skill extraction per job; resume parsing guards for too-short, overlong and implausible input; batch embedding of every candidate still missing one; recruiter chat that falls back to the retrieved candidates when the chat model fails.
+- **Observability:** `X-Request-Id` correlation IDs in responses and log lines; structured JSON logging with `LOG_FORMAT`; Actuator metrics and a Prometheus endpoint with timers around model calls; liveness and readiness probes.
+- **Quality and operations:** unit tests for the skill-gap and matching services; a non-root, container-aware Docker image with a Compose healthcheck; optional demo data with `SEED_DEMO_DATA=true`.
+
+New settings in this release: `AUTH_ENFORCED`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT`, `AI_RATE_LIMIT_REQUESTS`, `AI_RATE_LIMIT_WINDOW`, `AI_RETRY_*`, `AI_CONNECT_TIMEOUT`, `AI_READ_TIMEOUT`, `ACTUATOR_ENDPOINTS`, `LOG_FORMAT` and `SEED_DEMO_DATA` (see [Configuration](#configuration)).
+
+### 1.0.0 (31 October 2026)
+
+First release: jobs, candidates and applications APIs; resume upload and model-backed parsing; pgvector embeddings and semantic ranking; match explanations, skill-gap reports, the recruiter assistant, interview questions, and the shortlisting and email agents; caching; user accounts, JWT login and roles; Flyway migrations; OpenAPI docs; Docker Compose and CI.
+
 ## Run it
 
 You need Docker and an OpenAI API key.
