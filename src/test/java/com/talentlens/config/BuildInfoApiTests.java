@@ -25,7 +25,7 @@ class BuildInfoApiTests {
 
     @Test
     void buildInfoCarriesTheReleaseVersion() {
-        assertThat(buildProperties.getVersion()).isEqualTo("1.0.0");
+        assertThat(buildProperties.getVersion()).isEqualTo("1.1.0");
         assertThat(buildProperties.getArtifact()).isEqualTo("talentlens");
     }
 
@@ -34,7 +34,7 @@ class BuildInfoApiTests {
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.build.artifact", is("talentlens")))
-                .andExpect(jsonPath("$.build.version", is("1.0.0")));
+                .andExpect(jsonPath("$.build.version", is("1.1.0")));
     }
 
     @Test
